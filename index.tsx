@@ -31,18 +31,36 @@ const App: React.FC = () => {
   
   const isEditMode = pin === '047';
 
+  // Sincronización con el formato de api.php para CARGAR datos
   useEffect(() => {
     const init = async () => {
       try {
-        const [dRes, sRes] = await Promise.all([
-          fetch(`${SCRIPT_URL}?action=loadData`),
-          fetch(`${SCRIPT_URL}?action=loadStatus`)
-        ]);
-        const d = await dRes.json();
-        const s = await sRes.json();
-        setData(Array.isArray(d) ? d : []);
-        setStatuses(Array.isArray(s) ? s : []);
+        const res = await fetch(`${SCRIPT_URL}?action=loadData`);
+        const json = await res.json();
+        
+        if (json.monthly_data) {
+          const mappedData = json.monthly_data.map((d: any) => ({
+            employeeId: d.employee_id,
+            month: parseInt(d.month_idx),
+            category: d.category,
+            section: d.section,
+            actual: parseInt(d.actual_value)
+          }));
+          setData(mappedData);
+          localStorage.setItem('backup_data', JSON.stringify(mappedData));
+        }
+        
+        if (json.month_status) {
+          const mappedStatus = json.month_status.map((s: any) => ({
+            month: parseInt(s.month_idx),
+            section: s.section,
+            isFilled: s.is_filled === "1" || s.is_filled === 1 || s.is_filled === true
+          }));
+          setStatuses(mappedStatus);
+          localStorage.setItem('backup_status', JSON.stringify(mappedStatus));
+        }
       } catch (e) {
+        console.error("Error loading data:", e);
         const ld = localStorage.getItem('backup_data');
         const ls = localStorage.getItem('backup_status');
         if (ld) setData(JSON.parse(ld));
@@ -54,17 +72,42 @@ const App: React.FC = () => {
     init();
   }, []);
 
+  // Sincronización con el formato de api.php para GUARDAR datos
   const saveToServer = async (action: string, payload: any) => {
     setSyncing(true);
-    localStorage.setItem(`backup_${action === 'saveData' ? 'data' : 'status'}`, JSON.stringify(payload));
+    
+    let mappedPayload = payload;
+    
+    // Mapeo específico para que api.php reconozca las llaves
+    if (action === 'saveData') {
+      mappedPayload = payload.map((item: any) => ({
+        employeeId: item.employeeId,
+        month: item.month,
+        category: item.category,
+        section: item.section,
+        value: item.actual // api.php espera 'value' para mapear a 'actual_value'
+      }));
+    } else if (action === 'saveStatus') {
+      mappedPayload = payload.map((item: any) => ({
+        month_idx: item.month, // api.php espera 'month_idx'
+        section: item.section,
+        is_filled: item.isFilled ? 1 : 0 // api.php espera 'is_filled'
+      }));
+    }
+
     try {
-      await fetch(SCRIPT_URL, {
+      const response = await fetch(SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, payload })
+        body: JSON.stringify({ action, payload: mappedPayload })
       });
+      const result = await response.json();
+      if (result.status === 'success') {
+        localStorage.setItem(`backup_${action === 'saveData' ? 'data' : 'status'}`, JSON.stringify(payload));
+      }
     } catch (e) {
       console.error("Error sync:", e);
+      localStorage.setItem(`backup_${action === 'saveData' ? 'data' : 'status'}`, JSON.stringify(payload));
     } finally {
       setSyncing(false);
     }
@@ -97,7 +140,6 @@ const App: React.FC = () => {
   const isLocked = (mIdx: number) => statuses.find(s => s.month === mIdx && s.section === sec)?.isFilled ?? false;
   const closedMonths = useMemo(() => statuses.filter(s => s.isFilled && s.section === sec).map(s => s.month), [statuses, sec]);
 
-  // Porcentaje de cumplimiento global de la sección para meses cerrados
   const globalSectionPerformance = useMemo(() => {
     if (closedMonths.length === 0) return 0;
     let totalActual = 0;
@@ -116,7 +158,6 @@ const App: React.FC = () => {
     return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
   }, [data, sec, closedMonths]);
 
-  // Datos para el gráfico de evolución (12 meses)
   const chartEvolutionData = useMemo(() => {
     const cats = SECTION_CONFIG[sec].categories;
     return MONTHS.map((mName, mIdx) => {
@@ -125,7 +166,7 @@ const App: React.FC = () => {
       
       cats.forEach((c: string) => {
         if (!isMonthClosed) {
-          row[c] = null; // No pintar si no está cerrado
+          row[c] = null;
           return;
         }
 
@@ -137,7 +178,6 @@ const App: React.FC = () => {
         });
 
         row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
-        row[`${c}_ud`] = sumActual;
       });
       return row;
     });
@@ -213,12 +253,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
-      {/* HEADER */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 h-20 flex items-center shadow-sm">
         <div className="max-w-7xl mx-auto px-6 w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-100"><Database size={22} /></div>
             <h1 className="font-black text-xl tracking-tighter text-slate-800">Performance <span className="text-indigo-600">2026</span></h1>
+            {syncing && <RefreshCw className="animate-spin text-indigo-500 ml-2" size={16} />}
           </div>
 
           <div className="flex items-center gap-4">
@@ -246,7 +286,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* SELECTOR DE SECCIONES */}
       <div className="bg-white border-b border-slate-200 py-6 sticky top-20 z-40">
         <div className="max-w-7xl mx-auto px-6">
            <div className="flex justify-between gap-3 overflow-x-auto scrollbar-hide">
@@ -275,10 +314,7 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                {SECTION_CONFIG[sec].categories.filter((c: string) => {
-                    if (sec === 'Madera') return true;
-                    return CATEGORY_GROUPS[grp]?.categories.includes(c);
-                }).map((c: string) => (
+                {SECTION_CONFIG[sec].categories.map((c: string) => (
                   <button key={c} onClick={() => setCat(c)} className={`p-4 rounded-2xl border-2 transition-all ${cat === c ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' : 'bg-white border-slate-50 text-slate-300'}`}>
                     {getCatIcon(c, 20)}
                   </button>
@@ -296,7 +332,7 @@ const App: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.employees : CATEGORY_GROUPS[grp]?.employees || []).map((emp: any) => {
+                  {SECTION_CONFIG[sec].employees.map((emp: any) => {
                     const total = MONTHS.reduce((acc, _, i) => acc + (data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0), 0);
                     return <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                       <td className="p-8 font-bold text-slate-700 sticky left-0 bg-white z-10 border-r">{emp.name}</td>
@@ -317,7 +353,6 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* GRÁFICO DE EVOLUCIÓN (ESTILO REFERENCIA) */}
             <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-2xl relative overflow-hidden">
                 <div className="flex items-center justify-between mb-12">
                     <div className="flex items-center gap-5">
@@ -328,7 +363,6 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     
-                    {/* Porcentaje de cumplimiento seccional a la derecha del encabezado */}
                     <div className="flex flex-col items-end">
                       <div className="flex items-baseline gap-2">
                         <span className={`text-4xl font-black ${globalSectionPerformance >= 100 ? 'text-emerald-600' : globalSectionPerformance >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>
@@ -394,7 +428,6 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* LEADERBOARD ESTILO IMAGEN */}
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
                     <h3 className="text-2xl font-black text-slate-800 tracking-tighter flex items-center gap-3 uppercase">
@@ -402,7 +435,7 @@ const App: React.FC = () => {
                     </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {leaderboardData.map((info, idx) => {
                         const status = getStatusInfo(info.percentage);
                         const isUp = info.percentage >= 80;
@@ -472,7 +505,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* FOOTER */}
       <footer className="py-20 text-center border-t border-slate-100 bg-white">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">
               Animación Monoproducto © 2026 | Sistema de Inteligencia de Rendimiento
