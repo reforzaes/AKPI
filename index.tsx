@@ -58,18 +58,22 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  // Guardado persistente
+  // Guardado persistente corregido para MySQL
   const saveToServer = async (action: string, payload: any) => {
     setSyncing(true);
     localStorage.setItem(`backup_${action === 'saveData' ? 'data' : 'status'}`, JSON.stringify(payload));
     try {
-      await fetch(SCRIPT_URL, {
+      const response = await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ action, payload })
       });
+      if (!response.ok) throw new Error('Error en servidor');
     } catch (e) {
-      console.error("Error de sincronización con MySQL");
+      console.error("Error de sincronización con MySQL:", e);
     } finally {
       setSyncing(false);
     }
