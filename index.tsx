@@ -169,6 +169,8 @@ const App: React.FC = () => {
       cats.forEach((c: string) => {
         if (!isMonthClosed) {
           row[c] = null;
+          row[c + '_actual'] = 0;
+          row[c + '_target'] = 0;
           return;
         }
         let sumActual = 0;
@@ -178,6 +180,8 @@ const App: React.FC = () => {
             sumTarget += getTarget(c, mIdx, emp.id);
         });
         row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
+        row[c + '_actual'] = sumActual;
+        row[c + '_target'] = sumTarget;
       });
       return row;
     });
@@ -455,7 +459,16 @@ const App: React.FC = () => {
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 900}} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
                             <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 11, fontWeight: 900}} ticks={[0, 35, 70, 105, 125]} axisLine={false} tickLine={false} label={{ value: 'CUMPLIMIENTO %', angle: -90, position: 'insideLeft', offset: 0, fontSize: 10, fontWeight: 900, fill: '#6366f1' }} />
-                            <Tooltip contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '20px'}} itemStyle={{fontSize: '12px', fontWeight: 800, textTransform: 'uppercase'}} labelStyle={{fontSize: '11px', fontWeight: 900, marginBottom: '8px', color: '#64748b'}} formatter={(val: any, name: string) => [`${val}%`, name]} />
+                            <Tooltip 
+                                contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '20px'}} 
+                                itemStyle={{fontSize: '12px', fontWeight: 800, textTransform: 'uppercase'}} 
+                                labelStyle={{fontSize: '11px', fontWeight: 900, marginBottom: '8px', color: '#64748b'}} 
+                                formatter={(val: any, name: string, props: any) => {
+                                    const actual = props.payload[name + '_actual'] || 0;
+                                    const target = props.payload[name + '_target'] || 0;
+                                    return [`${val}% (${actual} / ${target} ud)`, name];
+                                }} 
+                            />
                             <Legend wrapperStyle={{paddingTop: '30px', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'}} iconType="circle" iconSize={10} />
                             <ReferenceLine y={100} stroke="#10b981" strokeDasharray="12 6" strokeWidth={2.5} label={{ position: 'right', value: 'META', fill: '#10b981', fontSize: 11, fontWeight: 900 }} />
                             {SECTION_CONFIG[sec].categories.map((c: string, i: number) => (
@@ -472,7 +485,6 @@ const App: React.FC = () => {
                         <Users className="text-indigo-600" /> Rendimiento por Vendedor
                     </h3>
                 </div>
-                {/* Fixed: Added missing assignment and class names for the leaderboard grid container */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {leaderboardData.map((info, idx) => {
                         const status = getStatusInfo(info.percentage);
