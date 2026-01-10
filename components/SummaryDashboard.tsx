@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { Employee, MonthlyData, Category, Section, CATEGORY_TARGETS, MonthStatus, SECTION_CONFIG, CATEGORY_GROUPS } from '../types';
+import { Employee, MonthlyData, Category, Section, MonthStatus, SECTION_CONFIG, CATEGORY_GROUPS, getTarget } from '../types';
 import { Target, TrendingUp, Award } from 'lucide-react';
 
 interface Props {
@@ -17,8 +16,6 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     .filter(s => s.isFilled && s.section === selectedSection)
     .map(s => s.month);
   
-  const target = CATEGORY_TARGETS[selectedCategory];
-
   // Chart data for the currently selected specific KPI
   const chartData = employees.map(emp => {
     const relevantData = data.filter(d => 
@@ -41,7 +38,6 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
 
   // Global aggregate data logic
   const getGroupCategories = (empId: string) => {
-    // Corrected CATEGORY_GROUPS property names to match types.ts
     if (selectedSection === 'Sanitario') {
       if (CATEGORY_GROUPS.SAN_VEND_PROJ.employees.some(e => e.id === empId)) {
         return CATEGORY_GROUPS.SAN_VEND_PROJ.categories;
@@ -58,7 +54,6 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
   };
 
   const getGroupTitle = (empId: string) => {
-    // Corrected CATEGORY_GROUPS property names to match types.ts
     if (selectedSection === 'Sanitario') {
       return CATEGORY_GROUPS.SAN_VEND_PROJ.employees.some(e => e.id === empId) ? 'Vendedor Proyecto' : 'Vendedor Especialista';
     }
@@ -77,9 +72,14 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
       filledMonths.includes(d.month)
     );
     
-    // Calculate sum of targets for all relevant categories
-    const groupTargetSum = groupCategories.reduce((acc, cat) => acc + CATEGORY_TARGETS[cat], 0);
-    const totalGoal = filledMonths.length * groupTargetSum;
+    // Fixed: Calculate goal using getTarget for each month and category
+    let totalGoal = 0;
+    filledMonths.forEach(mIdx => {
+      groupCategories.forEach(cat => {
+        totalGoal += getTarget(cat, mIdx);
+      });
+    });
+    
     const totalActual = relevantData.reduce((acc, curr) => acc + curr.actual, 0);
     const percentage = totalGoal > 0 ? (totalActual / totalGoal) * 100 : 0;
     
@@ -93,9 +93,16 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     };
   });
 
+  // Fixed: use average target for comparison since val is a per-month average
   const getBarColor = (val: number) => {
-    if (val >= target) return '#22c55e';
-    if (val >= target * 0.8) return '#facc15';
+    let totalTarget = 0;
+    filledMonths.forEach(mIdx => {
+      totalTarget += getTarget(selectedCategory, mIdx);
+    });
+    const avgTarget = filledMonths.length > 0 ? totalTarget / filledMonths.length : 0;
+    
+    if (val >= avgTarget) return '#22c55e';
+    if (val >= avgTarget * 0.8) return '#facc15';
     return '#ef4444';
   };
 
@@ -115,12 +122,16 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     );
   }
 
-  // Group global performance for display
   const groupedPerformance = globalPerformanceData.reduce((acc, curr) => {
     if (!acc[curr.group]) acc[curr.group] = [];
     acc[curr.group].push(curr);
     return acc;
   }, {} as Record<string, any[]>);
+
+  // Fixed: Average target for the chart reference line
+  const averageTarget = filledMonths.length > 0 
+    ? filledMonths.reduce((acc, mIdx) => acc + getTarget(selectedCategory, mIdx), 0) / filledMonths.length 
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -184,7 +195,7 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
                   itemStyle={{fontWeight: 900, fontSize: '14px'}}
                   labelStyle={{fontWeight: 700, color: '#64748b', marginBottom: '4px'}}
                 />
-                <ReferenceLine y={target} stroke="#cbd5e1" strokeDasharray="8 4" label={{ position: 'right', value: 'Obj', fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} />
+                <ReferenceLine y={averageTarget} stroke="#cbd5e1" strokeDasharray="8 4" label={{ position: 'right', value: 'Obj', fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} />
                 <Bar dataKey="average" radius={[6, 6, 0, 0]} barSize={32}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getBarColor(entry.average)} />
@@ -198,25 +209,28 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
         <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
           <h3 className="text-lg font-black text-slate-800 tracking-tight mb-6">Detalle por Colaborador</h3>
           <div className="space-y-3">
-            {chartData.map((emp) => (
-              <div key={emp.fullName} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-indigo-200 transition-all">
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-700 group-hover:text-indigo-900 transition-colors">{emp.fullName}</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total {selectedCategory}: {emp.total}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className={`text-2xl font-black ${emp.average >= target ? 'text-green-600' : emp.average >= target * 0.8 ? 'text-amber-600' : 'text-red-600'}`}>
-                      {emp.average}
+            {chartData.map((emp) => {
+              const currentAverageTarget = averageTarget;
+              return (
+                <div key={emp.fullName} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-indigo-200 transition-all">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-700 group-hover:text-indigo-900 transition-colors">{emp.fullName}</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total {selectedCategory}: {emp.total}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className={`text-2xl font-black ${emp.average >= currentAverageTarget ? 'text-green-600' : emp.average >= currentAverageTarget * 0.8 ? 'text-amber-600' : 'text-red-600'}`}>
+                        {emp.average}
+                      </div>
+                      <div className="text-[10px] uppercase font-black tracking-tighter text-slate-400">Promedio</div>
                     </div>
-                    <div className="text-[10px] uppercase font-black tracking-tighter text-slate-400">Promedio</div>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getPercentageColor((emp.average / target) * 100)}`}>
-                    {Math.round((emp.average / target) * 100)}%
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getPercentageColor((emp.average / currentAverageTarget) * 100)}`}>
+                      {Math.round((emp.average / currentAverageTarget) * 100)}%
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

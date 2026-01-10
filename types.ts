@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   ShowerHead, Utensils, TreeDeciduous, Zap, Flower2 
@@ -33,16 +32,61 @@ export interface CategoryGroup {
   employees: Employee[];
 }
 
-// Fixed: Added exported constants required by other components
 export const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-export const CATEGORY_TARGETS: Record<string, number> = {
-  'Mamparas': 10, 'Mediciones (Reform, CBxP y CPxP)': 2, 'Muebles de Baño': 10,
-  'CBxP + PxP': 10, 'Reformas': 10, 'Encimeras de piedra': 2,
-  'Armarios': 4, 'Mediciones': 10, 'Reforma Cocinas': 9,
-  'Puertas de Entrada': 10, 'Puertas de Paso': 10,
-  'Placas Solares': 5, 'Aerotermia': 3, 'Baterías': 2, 'Instalación EERR': 4,
-  'Césped Artificial': 8, 'Cercados': 6, 'Riego': 10, 'Reformas Jardín': 3
+export const CATEGORY_TARGETS: Record<string, number | number[]> = {
+  'Mamparas': [3, 3, 4, 4, 5, 5, 5, 6, 4, 6, 3, 4], 
+  'Mediciones (Reform, CBxP y CPxP)': 2, 
+  'Muebles de Baño': [4, 3, 4, 4, 4, 5, 5, 4, 4, 4, 4, 3],
+  'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6], 
+  'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4], 
+  'Encimeras de piedra': 2,
+  'Armarios': 4, 
+  'Mediciones': 10, 
+  'Reforma Cocinas': 9,
+  'Puertas de Entrada': 10, 
+  'Puertas de Paso': 10,
+  'Placas Solares': 5, 
+  'Aerotermia': 3, 
+  'Baterías': 2, 
+  'Instalación EERR': 4,
+  'Césped Artificial': 8, 
+  'Cercados': 6, 
+  'Riego': 10, 
+  'Reformas Jardín': 3
+};
+
+/**
+ * Objetivos específicos por empleado para KPIs concretos.
+ */
+export const EMPLOYEE_SPECIFIC_TARGETS: Record<string, Record<string, number[]>> = {
+  'p1': { // Miguel Angel
+    'Mamparas': [10, 15, 14, 16, 15, 17, 20, 18, 16, 18, 9, 8],
+    'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
+    'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6]
+  },
+  'p2': { // Cristina Moreno
+    'Mamparas': [10, 10, 10, 11, 14, 15, 16, 12, 9, 8, 7, 6],
+    'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
+    'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6]
+  }
+};
+
+/**
+ * Obtiene el objetivo para una categoría y mes específicos, opcionalmente por empleado.
+ */
+export const getTarget = (cat: string, mIdx: number, empId?: string): number => {
+  // Primero intentamos override por empleado
+  if (empId && EMPLOYEE_SPECIFIC_TARGETS[empId] && EMPLOYEE_SPECIFIC_TARGETS[empId][cat]) {
+    return EMPLOYEE_SPECIFIC_TARGETS[empId][cat][mIdx] ?? 0;
+  }
+  
+  // Si no, usamos el objetivo general de la categoría
+  const target = CATEGORY_TARGETS[cat];
+  if (Array.isArray(target)) {
+    return target[mIdx] ?? 0;
+  }
+  return target ?? 0;
 };
 
 export const CATEGORY_GROUPS: Record<string, CategoryGroup> = {
@@ -57,8 +101,11 @@ export const CATEGORY_GROUPS: Record<string, CategoryGroup> = {
   },
   SAN_VEND_PROJ: {
     title: 'Vendedor Proyecto',
-    categories: ['CBxP + PxP', 'Reformas'],
-    employees: [{ id: 'p1', name: 'Miguel Angel' }, { id: 'p2', name: 'Cristina Moreno' }]
+    categories: ['Mamparas', 'CBxP + PxP', 'Reformas'],
+    employees: [
+      { id: 'p1', name: 'Miguel Angel' }, 
+      { id: 'p2', name: 'Cristina Moreno' }
+    ]
   },
   COC_VEND_ESP: {
     title: 'Vendedor Especialista',
@@ -101,7 +148,7 @@ export const CATEGORY_GROUPS: Record<string, CategoryGroup> = {
 export const SECTION_CONFIG: any = {
   Sanitario: {
     icon: React.createElement(ShowerHead, { size: 18 }),
-    categories: [...CATEGORY_GROUPS.SAN_VEND_ESP.categories, ...CATEGORY_GROUPS.SAN_VEND_PROJ.categories],
+    categories: Array.from(new Set([...CATEGORY_GROUPS.SAN_VEND_ESP.categories, ...CATEGORY_GROUPS.SAN_VEND_PROJ.categories])),
     employees: [...CATEGORY_GROUPS.SAN_VEND_ESP.employees, ...CATEGORY_GROUPS.SAN_VEND_PROJ.employees]
   },
   Cocinas: {
@@ -119,12 +166,12 @@ export const SECTION_CONFIG: any = {
   },
   EERR: {
     icon: React.createElement(Zap, { size: 18 }),
-    categories: [...CATEGORY_GROUPS.EERR_VEND_ESP.categories, ...CATEGORY_GROUPS.EERR_VEND_PROJ.categories],
+    categories: Array.from(new Set([...CATEGORY_GROUPS.EERR_VEND_ESP.categories, ...CATEGORY_GROUPS.EERR_VEND_PROJ.categories])),
     employees: [...CATEGORY_GROUPS.EERR_VEND_ESP.employees, ...CATEGORY_GROUPS.EERR_VEND_PROJ.employees]
   },
   Jardin: {
     icon: React.createElement(Flower2, { size: 18 }),
-    categories: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.categories, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories],
+    categories: Array.from(new Set([...CATEGORY_GROUPS.JARDIN_VEND_ESP.categories, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories])),
     employees: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.employees, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.employees]
   }
 };

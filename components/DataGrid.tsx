@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { MONTHS, MonthlyData, Category, Section, CATEGORY_TARGETS, Employee } from '../types';
+import { MONTHS, MonthlyData, Category, Section, Employee, getTarget } from '../types';
 
 interface Props {
   selectedSection: Section;
@@ -13,8 +12,6 @@ interface Props {
 }
 
 const DataGrid: React.FC<Props> = ({ selectedSection, selectedCategory, employees, data, onUpdateValue, isMonthLocked, isEditMode }) => {
-  const target = CATEGORY_TARGETS[selectedCategory];
-
   const getValue = (employeeId: string, month: number) => {
     return data.find(d => 
       d.employeeId === employeeId && 
@@ -24,14 +21,18 @@ const DataGrid: React.FC<Props> = ({ selectedSection, selectedCategory, employee
     )?.actual ?? 0;
   };
 
-  const getCellStyles = (val: number) => {
+  // Fixed: use getTarget(cat, month) instead of static target from CATEGORY_TARGETS
+  const getCellStyles = (val: number, mIdx: number) => {
+    const target = getTarget(selectedCategory, mIdx);
     if (val === 0) return 'bg-white text-slate-400';
     if (val >= target) return 'bg-green-50 text-green-700 border-green-200';
     if (val >= target * 0.8) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
     return 'bg-red-50 text-red-700 border-red-200';
   };
 
-  const getInputStyles = (val: number, locked: boolean) => {
+  // Fixed: use getTarget(cat, month) instead of static target from CATEGORY_TARGETS
+  const getInputStyles = (val: number, mIdx: number, locked: boolean) => {
+    const target = getTarget(selectedCategory, mIdx);
     if (locked || !isEditMode) return 'bg-transparent text-slate-500 cursor-not-allowed opacity-60';
     if (val === 0) return 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-indigo-500';
     if (val >= target) return 'bg-green-100/50 border-green-300 text-green-800';
@@ -69,11 +70,12 @@ const DataGrid: React.FC<Props> = ({ selectedSection, selectedCategory, employee
                 {MONTHS.map((_, mIdx) => {
                   const val = getValue(employee.id, mIdx);
                   const locked = isMonthLocked(mIdx);
+                  const target = getTarget(selectedCategory, mIdx);
                   
                   return (
                     <td 
                       key={`${employee.id}-${mIdx}`} 
-                      className={`p-3 border-r border-slate-100 transition-all duration-300 ${getCellStyles(val)}`}
+                      className={`p-3 border-r border-slate-100 transition-all duration-300 ${getCellStyles(val, mIdx)}`}
                     >
                       <div className="flex flex-col items-center justify-center gap-1">
                         <input
@@ -82,7 +84,7 @@ const DataGrid: React.FC<Props> = ({ selectedSection, selectedCategory, employee
                           disabled={locked || !isEditMode}
                           placeholder="0"
                           onChange={(e) => onUpdateValue(employee.id, mIdx, parseInt(e.target.value) || 0)}
-                          className={`w-14 h-10 text-center rounded-lg border-2 transition-all font-black text-lg outline-none ${getInputStyles(val, locked)}`}
+                          className={`w-14 h-10 text-center rounded-lg border-2 transition-all font-black text-lg outline-none ${getInputStyles(val, mIdx, locked)}`}
                         />
                         {val > 0 && (
                           <span className="text-[10px] font-bold uppercase tracking-tighter opacity-70">
