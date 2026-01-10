@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -11,14 +10,13 @@ import {
   DoorClosed, LogIn, DoorOpen, Zap, Flower2, Sun, Wind, Battery, 
   Sprout, Fence, Droplets, Hammer, Gem, Ruler, Users, Trophy 
 } from 'lucide-react';
-// Fixed: Imported shared constants from types.ts
 import { 
   Section, Category, Employee, MonthlyData, MonthStatus, CategoryGroup,
   MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG 
 } from './types';
 import { GoogleGenAI } from "@google/genai";
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJbIg0kW7jJKVK3X7mNwNdbDy2QQISNhR1bO5J8RLO1o_kERmoXuivIOLXtcFBC5nlNw/exec';
+const SCRIPT_URL = 'api.php';
 
 const App: React.FC = () => {
   const [data, setData] = useState<MonthlyData[]>([]);
@@ -48,7 +46,7 @@ const App: React.FC = () => {
         setData(Array.isArray(d) ? d : []);
         setStatuses(Array.isArray(s) ? s : []);
       } catch (e) {
-        console.warn("Utilizando respaldo local");
+        console.warn("Utilizando respaldo local por fallo de conexión");
         const ld = localStorage.getItem('backup_data');
         const ls = localStorage.getItem('backup_status');
         if (ld) setData(JSON.parse(ld));
@@ -67,12 +65,11 @@ const App: React.FC = () => {
     try {
       await fetch(SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, payload })
       });
     } catch (e) {
-      console.error("Error de sincronización");
+      console.error("Error de sincronización con MySQL");
     } finally {
       setSyncing(false);
     }
@@ -193,7 +190,6 @@ const App: React.FC = () => {
   const runAiAudit = async () => {
     setAiAnalysis("Analizando datos con IA...");
     try {
-      // Fixed: Initialize GoogleGenAI correctly using process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Analiza el rendimiento del equipo de ${sec} con estos datos de cumplimiento: ${JSON.stringify(leaderboardData)}. Da consejos estratégicos breves.`;
       const response = await ai.models.generateContent({
