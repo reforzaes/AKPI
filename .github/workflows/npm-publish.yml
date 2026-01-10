@@ -1,36 +1,35 @@
-[cite_start]name: Build y Deploy Automático [cite: 1]
+name: Build y Deploy Automático
 
 on:
   push:
-    [cite_start]branches: [ "main" ] [cite: 2, 3, 4]
+    branches: [ "main" ]
 
 jobs:
   build-and-deploy:
-    [cite_start]runs-on: ubuntu-latest [cite: 5, 6, 7]
+    runs-on: ubuntu-latest
 
     steps:
-      - [cite_start]name: 1. Obtener código [cite: 9]
-        [cite_start]uses: actions/checkout@v4 [cite: 10]
+      - name: 1. Obtener código
+        uses: actions/checkout@v4
 
-      - [cite_start]name: 2. Configurar Node.js [cite: 11]
-        [cite_start]uses: actions/setup-node@v4 [cite: 12]
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
         with:
-          [cite_start]node-version: 20 [cite: 14]
+          node-version: 20
 
-      - [cite_start]name: 3. Instalar dependencias y Vite [cite: 15]
-        [cite_start]run: | [cite: 17]
-          [cite_start]npm install [cite: 18]
-          [cite_start]npm install -D vite @vitejs/plugin-react [cite: 19]
+      - name: 3. Instalar dependencias y Vite
+        run: |
+          npm install
+          npm install -D vite @vitejs/plugin-react
 
-      - [cite_start]name: 4. Compilar proyecto [cite: 20]
-        [cite_start]run: npx vite build [cite: 22]
+      - name: 4. Compilar proyecto
+        run: npx vite build
 
-      - [cite_start]name: 5. 🚀 Subir a Hostinger (AKPI) [cite: 23]
-        [cite_start]uses: SamKirkland/FTP-Deploy-Action@v4.3.5 [cite: 24]
+      - name: 5. 🚀 Subir a Hostinger (AKPI)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          [cite_start]server: ${{ secrets.FTPSERVER }} [cite: 26]
-          [cite_start]username: ${{ secrets.FTPUSER }} [cite: 27]
-          [cite_start]password: ${{ secrets.FTPPASS }} [cite: 28]
-          [cite_start]local-dir: ./dist/ [cite: 29]
-          # Ruta actualizada según tu petición
+          server: ${{ secrets.FTPSERVER }}
+          username: ${{ secrets.FTPUSER }}
+          password: ${{ secrets.FTPPASS }}
+          local-dir: ./dist/
           server-dir: ./public_html/AKPI/
