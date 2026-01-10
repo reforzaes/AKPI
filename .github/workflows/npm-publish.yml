@@ -1,4 +1,4 @@
-name: Build y Deploy Automático
+¡name: Build y Deploy Automático
 
 on:
   push:
@@ -9,27 +9,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Obtener código
-        uses: actions/checkout@v4
+    - name: 1. Obtener código
+      uses: actions/checkout@v4
 
-      - name: 2. Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+    - name: 2. Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
 
-      - name: 3. Instalar dependencias y Vite
-        run: |
-          npm install
-          npm install -D vite @vitejs/plugin-react
+    - name: 3. Instalar dependencias y Vite
+      # Instalamos todo y forzamos la presencia de Vite por si acaso
+      run: |
+        npm install
+        npm install -D vite @vitejs/plugin-react
 
-      - name: 4. Compilar proyecto
-        run: npx vite build
+    - name: 4. Compilar proyecto
+      # Usamos npx para asegurar que encuentre el ejecutable de vite
+      run: npx vite build
 
-      - name: 5. 🚀 Subir a Hostinger (AKPI)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTPSERVER }}
-          username: ${{ secrets.FTPUSER }}
-          password: ${{ secrets.FTPPASS }}
-          local-dir: ./dist/
-          server-dir: ./public_html/AKPI/
+    - name: 5. 🚀 Subir SOLO la compilación a Hostinger
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTPSERVER }}
+        username: ${{ secrets.FTPUSER }}
+        password: ${{ secrets.FTPPASS }}
+        local-dir: ./dist/
+        server-dir: ./
