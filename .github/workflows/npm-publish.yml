@@ -1,4 +1,4 @@
-¡name: Build y Deploy Automático
+name: Build y Deploy Automático
 
 on:
   push:
