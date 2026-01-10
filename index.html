@@ -1,159 +1,38 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animación Monoproducto | Rendimiento 2026</title>
+    <title>Monoproducto Performance | 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            margin: 0; 
+            color: #1e293b;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useCallback } = React;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } = Recharts;
-
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJbIg0kW7jJKVK3X7mNwNdbDy2QQISNhR1bO5J8RLO1o_kERmoXuivIOLXtcFBC5nlNw/exec';
-        const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        
-        const CATEGORY_TARGETS = {
-            'Mamparas': 10, 'Mediciones (Reform, CBxP y CPxP)': 2, 'Muebles de Baño': 10,
-            'CBxP + PxP': 10, 'Reformas': 10, 'Encimeras de piedra': 2,
-            'Armarios': 4, 'Mediciones': 10, 'Reforma Cocinas': 9,
-            'Puertas de Entrada': 10, 'Puertas de Paso': 10,
-            'Placas Solares': 5, 'Aerotermia': 3, 'Baterías': 2, 'Instalación EERR': 4,
-            'Césped Artificial': 8, 'Cercados': 6, 'Riego': 10, 'Reformas Jardín': 3
-        };
-
-        const CATEGORY_GROUPS = {
-            SAN_VEND_ESP: { title: 'Vend Especialista', categories: ['Mamparas', 'Muebles de Baño', 'Mediciones (Reform, CBxP y CPxP)'], employees: [{ id: 's1', name: 'Pablo de Ramos' }, { id: 's2', name: 'Jose Navarro' }, { id: 's3', name: 'Alexandra Garcia' }, { id: 's4', name: 'Begoña Roig' }, { id: 's5', name: 'Blanca Malonda' }, { id: 's6', name: 'Andrea Grau' }] },
-            SAN_VEND_PROJ: { title: 'Vend Proyecto', categories: ['CBxP + PxP', 'Reformas'], employees: [{ id: 'p1', name: 'Miguel Angel' }, { id: 'p2', name: 'Cristina Moreno' }] },
-            COC_VEND_ESP: { title: 'Vend Especialista', categories: ['Encimeras de piedra', 'Armarios', 'Mediciones'], employees: [{ id: 'ce1', name: 'Laura Llopis' }, { id: 'ce2', name: 'Jorge Castella' }, { id: 'ce3', name: 'Analía Paredes' }, { id: 'ce4', name: 'Raquel Company' }, { id: 'ce5', name: 'May Cerezo' }, { id: 'ce6', name: 'Silvia Sanchez' }, { id: 'ce7', name: 'Daniel Villar' }] },
-            COC_VEND_PROJ: { title: 'Vend Proyecto', categories: ['Encimeras de piedra', 'Armarios', 'Mediciones', 'Reforma Cocinas'], employees: [{ id: 'cp1', name: 'Raquel Company' }, { id: 'cp2', name: 'Lara Palmira' }, { id: 'cp3', name: 'May Cerezo' }] },
-            EERR_VEND_ESP: { title: 'Vend Especialista', categories: ['Placas Solares', 'Aerotermia', 'Baterías'], employees: [{ id: 'e1', name: 'Carlos Sol' }, { id: 'e2', name: 'Marta Viento' }] },
-            EERR_VEND_PROJ: { title: 'Vend Proyecto', categories: ['Instalación EERR'], employees: [{ id: 'ep1', name: 'Roberto Voltio' }] },
-            JARDIN_VEND_ESP: { title: 'Vend Especialista', categories: ['Césped Artificial', 'Cercados', 'Riego'], employees: [{ id: 'j1', name: 'Ana Pradera' }, { id: 'j2', name: 'Luis Riego' }] },
-            JARDIN_VEND_PROJ: { title: 'Vend Proyecto', categories: ['Reformas Jardín'], employees: [{ id: 'jp1', name: 'Sofía Paisaje' }] }
-        };
-
-        const SECTION_CONFIG = {
-            Sanitario: { icon: 'ShowerHead', categories: [...CATEGORY_GROUPS.SAN_VEND_ESP.categories, ...CATEGORY_GROUPS.SAN_VEND_PROJ.categories], employees: [...CATEGORY_GROUPS.SAN_VEND_ESP.employees, ...CATEGORY_GROUPS.SAN_VEND_PROJ.employees] },
-            Cocinas: { icon: 'Utensils', categories: ['Encimeras de piedra', 'Armarios', 'Mediciones', 'Reforma Cocinas'], employees: [...CATEGORY_GROUPS.COC_VEND_ESP.employees, ...CATEGORY_GROUPS.COC_VEND_PROJ.employees] },
-            Madera: { icon: 'TreeDeciduous', categories: ['Puertas de Entrada', 'Puertas de Paso'], employees: [{ id: 'm1', name: 'Colaborador 1' }, { id: 'm2', name: 'Colaborador 2' }, { id: 'm3', name: 'Colaborador 3' }, { id: 'm4', name: 'Colaborador 4' }] },
-            EERR: { icon: 'Zap', categories: [...CATEGORY_GROUPS.EERR_VEND_ESP.categories, ...CATEGORY_GROUPS.EERR_VEND_PROJ.categories], employees: [...CATEGORY_GROUPS.EERR_VEND_ESP.employees, ...CATEGORY_GROUPS.EERR_VEND_PROJ.employees] },
-            Jardin: { icon: 'Flower2', categories: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.categories, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories], employees: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.employees, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.employees] }
-        };
-
-        const App = () => {
-            const [data, setData] = useState([]);
-            const [statuses, setStatuses] = useState([]);
-            const [sec, setSec] = useState('Sanitario');
-            const [view, setView] = useState('entry');
-            const [month, setMonth] = useState(-1);
-
-            useEffect(() => {
-                fetch(`${SCRIPT_URL}?action=loadData`).then(r => r.json()).then(d => setData(Array.isArray(d) ? d : []));
-                fetch(`${SCRIPT_URL}?action=loadStatus`).then(r => r.json()).then(s => setStatuses(Array.isArray(s) ? s : []));
-            }, []);
-
-            const closedMonths = useMemo(() => statuses.filter(s => s.isFilled && s.section === sec).map(s => s.month), [statuses, sec]);
-
-            const chartEvolutionData = useMemo(() => {
-                const cats = SECTION_CONFIG[sec].categories;
-                return MONTHS.map((mName, mIdx) => {
-                    const monthObj = { name: mName.substring(0, 3) };
-                    const isClosed = closedMonths.includes(mIdx);
-                    cats.forEach(c => {
-                        if (!isClosed) { monthObj[c] = null; return; }
-                        const responsibleIds = new Set();
-                        Object.keys(CATEGORY_GROUPS).forEach(gk => { if (CATEGORY_GROUPS[gk].categories.includes(c)) CATEGORY_GROUPS[gk].employees.forEach(e => responsibleIds.add(e.id)); });
-                        if (sec === 'Madera') SECTION_CONFIG.Madera.employees.forEach(e => responsibleIds.add(e.id));
-                        let sum = 0;
-                        responsibleIds.forEach(id => sum += data.find(d => d.employeeId === id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0);
-                        const target = responsibleIds.size * CATEGORY_TARGETS[c];
-                        monthObj[c] = target > 0 ? Math.round((sum / target) * 100) : 0;
-                        monthObj[`${c}_ud`] = sum;
-                    });
-                    return monthObj;
-                });
-            }, [data, sec, closedMonths]);
-
-            const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
-
-            return (
-                <div className="min-h-screen flex flex-col">
-                    <header className="bg-white border-b h-20 flex items-center px-6 justify-between sticky top-0 z-50">
-                        <div className="flex items-center gap-2"><h1 className="font-black text-xl">Animación <span className="text-indigo-600">Monoproducto</span></h1></div>
-                        <div className="flex gap-4">
-                            <div className="bg-slate-100 p-1 rounded-xl flex">
-                                <button onClick={() => setView('entry')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase ${view === 'entry' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Registro</button>
-                                <button onClick={() => setView('stats')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase ${view === 'stats' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Analítica</button>
-                            </div>
-                        </div>
-                    </header>
-                    <main className="p-8 max-w-7xl mx-auto w-full">
-                        {view === 'stats' && (
-                            <div className="bg-white p-8 rounded-[2rem] border shadow-sm">
-                                <h3 className="text-lg font-black uppercase mb-8">Evolución del Cumplimiento</h3>
-                                <div className="h-[450px]">
-                                    <ResponsiveContainer>
-                                        <LineChart data={chartEvolutionData} margin={{right: 30, left: 20}}>
-                                            <CartesianGrid vertical={false} stroke="#f1f5f9" />
-                                            <XAxis dataKey="name" tick={{fontSize:10, fontWeight:900}} />
-                                            <YAxis yAxisId="left" domain={[0, 120]} tick={{fontSize:10, fontWeight:900, fill:'#4f46e5'}} label={{ value: 'CUMPLIMIENTO (%)', angle: -90, position: 'insideLeft', fontSize:10, fontWeight:900 }} />
-                                            <YAxis yAxisId="right" orientation="right" tick={{fontSize:10, fontWeight:900}} label={{ value: 'UNIDADES (UD)', angle: 90, position: 'insideRight', fontSize:10, fontWeight:900 }} />
-                                            <Tooltip formatter={(v, n) => {
-                                                const entry = chartEvolutionData.find(d => d[n] === v);
-                                                const ud = entry ? entry[`${n}_ud`] : '-';
-                                                return [`${v}% (${ud} Ud)`, n];
-                                            }} />
-                                            <Legend wrapperStyle={{paddingTop: '20px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase'}} />
-                                            <ReferenceLine yAxisId="left" y={100} stroke="#10b981" strokeDasharray="5 5" />
-                                            {SECTION_CONFIG[sec].categories.map((c, i) => (
-                                                <Line 
-                                                    key={c} 
-                                                    yAxisId="left" 
-                                                    type="monotone" 
-                                                    dataKey={c} 
-                                                    name={c} // Nombre del KPI para la leyenda
-                                                    stroke={COLORS[i % COLORS.length]} 
-                                                    strokeWidth={4} 
-                                                />
-                                            ))}
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-                        {view === 'entry' && <p className="text-center font-bold text-slate-400">Selecciona Analítica para ver el gráfico actualizado.</p>}
-                    </main>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>

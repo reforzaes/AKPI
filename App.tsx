@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Cell
@@ -6,102 +7,12 @@ import {
   Database, RefreshCw, CheckCircle, Unlock, Lock, Target, ShowerHead, Bath, 
   TreeDeciduous, Utensils, UserCheck, UserPlus, TrendingUp, Award, Calendar, Archive, ArrowRightLeft, DoorClosed, LogIn, DoorOpen, Zap, Flower2, Sun, Wind, Battery, Sprout, Fence, Droplets, Hammer, Gem, Ruler, Users, Trophy
 } from 'lucide-react';
+// Fixed: Imported shared constants from types.ts
+import { 
+  MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG 
+} from './types';
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJbIg0kW7jJKVK3X7mNwNdbDy2QQISNhR1bO5J8RLO1o_kERmoXuivIOLXtcFBC5nlNw/exec';
-const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-const CATEGORY_TARGETS: Record<string, number> = {
-  'Mamparas': 10, 'Mediciones (Reform, CBxP y CPxP)': 2, 'Muebles de Baño': 10,
-  'CBxP + PxP': 10, 'Reformas': 10, 'Encimeras de piedra': 2,
-  'Armarios': 4, 'Mediciones': 10, 'Reforma Cocinas': 9,
-  'Puertas de Entrada': 10, 'Puertas de Paso': 10,
-  'Placas Solares': 5, 'Aerotermia': 3, 'Baterías': 2, 'Instalación EERR': 4,
-  'Césped Artificial': 8, 'Cercados': 6, 'Riego': 10, 'Reformas Jardín': 3
-};
-
-const CATEGORY_GROUPS = {
-  SAN_VEND_ESP: {
-    title: 'Vend Especialista',
-    categories: ['Mamparas', 'Muebles de Baño', 'Mediciones (Reform, CBxP y CPxP)'],
-    employees: [
-      { id: 's1', name: 'Pablo de Ramos' }, { id: 's2', name: 'Jose Navarro' },
-      { id: 's3', name: 'Alexandra Garcia' }, { id: 's4', name: 'Begoña Roig' },
-      { id: 's5', name: 'Blanca Malonda' }, { id: 's6', name: 'Andrea Grau' }
-    ]
-  },
-  SAN_VEND_PROJ: {
-    title: 'Vend Proyecto',
-    categories: ['CBxP + PxP', 'Reformas'],
-    employees: [{ id: 'p1', name: 'Miguel Angel' }, { id: 'p2', name: 'Cristina Moreno' }]
-  },
-  COC_VEND_ESP: {
-    title: 'Vend Especialista',
-    categories: ['Encimeras de piedra', 'Armarios', 'Mediciones'],
-    employees: [
-      { id: 'ce1', name: 'Laura Llopis' }, { id: 'ce2', name: 'Jorge Castella' },
-      { id: 'ce3', name: 'Analía Paredes' }, { id: 'ce4', name: 'Raquel Company' },
-      { id: 'ce5', name: 'May Cerezo' }, { id: 'ce6', name: 'Silvia Sanchez' }, { id: 'ce7', name: 'Daniel Villar' }
-    ]
-  },
-  COC_VEND_PROJ: {
-    title: 'Vend Proyecto',
-    categories: ['Encimeras de piedra', 'Armarios', 'Mediciones', 'Reforma Cocinas'],
-    employees: [
-      { id: 'cp1', name: 'Raquel Company' }, { id: 'cp2', name: 'Lara Palmira' }, { id: 'cp3', name: 'May Cerezo' }
-    ]
-  },
-  EERR_VEND_ESP: {
-    title: 'Vend Especialista',
-    categories: ['Placas Solares', 'Aerotermia', 'Baterías'],
-    employees: [{ id: 'e1', name: 'Carlos Sol' }, { id: 'e2', name: 'Marta Viento' }]
-  },
-  EERR_VEND_PROJ: {
-    title: 'Vend Proyecto',
-    categories: ['Instalación EERR'],
-    employees: [{ id: 'ep1', name: 'Roberto Voltio' }]
-  },
-  JARDIN_VEND_ESP: {
-    title: 'Vend Especialista',
-    categories: ['Césped Artificial', 'Cercados', 'Riego'],
-    employees: [{ id: 'j1', name: 'Ana Pradera' }, { id: 'j2', name: 'Luis Riego' }]
-  },
-  JARDIN_VEND_PROJ: {
-    title: 'Vend Proyecto',
-    categories: ['Reformas Jardín'],
-    employees: [{ id: 'jp1', name: 'Sofía Paisaje' }]
-  }
-};
-
-const SECTION_CONFIG: any = {
-  Sanitario: {
-    icon: <ShowerHead size={18}/>,
-    categories: [...CATEGORY_GROUPS.SAN_VEND_ESP.categories, ...CATEGORY_GROUPS.SAN_VEND_PROJ.categories],
-    employees: [...CATEGORY_GROUPS.SAN_VEND_ESP.employees, ...CATEGORY_GROUPS.SAN_VEND_PROJ.employees]
-  },
-  Cocinas: {
-    icon: <Utensils size={18}/>,
-    categories: ['Encimeras de piedra', 'Armarios', 'Mediciones', 'Reforma Cocinas'],
-    employees: [...CATEGORY_GROUPS.COC_VEND_ESP.employees, ...CATEGORY_GROUPS.COC_VEND_PROJ.employees]
-  },
-  Madera: {
-    icon: <TreeDeciduous size={18}/>,
-    categories: ['Puertas de Entrada', 'Puertas de Paso'],
-    employees: [
-      { id: 'm1', name: 'Colaborador 1' }, { id: 'm2', name: 'Colaborador 2' },
-      { id: 'm3', name: 'Colaborador 3' }, { id: 'm4', name: 'Colaborador 4' }
-    ]
-  },
-  EERR: {
-    icon: <Zap size={18}/>,
-    categories: [...CATEGORY_GROUPS.EERR_VEND_ESP.categories, ...CATEGORY_GROUPS.EERR_VEND_PROJ.categories],
-    employees: [...CATEGORY_GROUPS.EERR_VEND_ESP.employees, ...CATEGORY_GROUPS.EERR_VEND_PROJ.employees]
-  },
-  Jardin: {
-    icon: <Flower2 size={18}/>,
-    categories: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.categories, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories],
-    employees: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.employees, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.employees]
-  }
-};
 
 const API = {
   async save(action: string, payload: any) {
