@@ -24,7 +24,8 @@ jobs:
           npm install -D vite @vitejs/plugin-react
 
       - name: 4. Compilar proyecto
-        run: npx vite build
+        run: npx vite build --base=/AKPI/
+
 
       - name: 5. 🚀 Subir a Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
