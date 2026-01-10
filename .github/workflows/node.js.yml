@@ -18,14 +18,13 @@ jobs:
         node-version: 20
 
     - name: 3. Instalar dependencias y Vite
-      # Instalamos todo y forzamos la presencia de Vite por si acaso
       run: |
         npm install
         npm install -D vite @vitejs/plugin-react
 
     - name: 4. Compilar proyecto
-      # Usamos npx para asegurar que encuentre el ejecutable de vite
-      run: npx vite build
+      # IMPORTANTE: Aquí añadimos el flag --base
+      run: npx vite build --base=/AKPI/
 
     - name: 5. 🚀 Subir SOLO la compilación a Hostinger
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
