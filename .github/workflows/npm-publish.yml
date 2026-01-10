@@ -17,8 +17,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: 3. Instalar todas las dependencias
-        # Incluimos las librerías que te daban error en la consola
+      - name: 3. Instalar dependencias críticas
+        # Instalamos manualmente las librerías que causan el error en consola
         run: |
           npm install
           npm install recharts prop-types lucide-react
@@ -34,5 +34,4 @@ jobs:
           username: ${{ secrets.FTPUSER }}
           password: ${{ secrets.FTPPASS }}
           local-dir: ./dist/
-          # Volvemos a ./ porque el FTP ya apunta a la carpeta destino
           server-dir: ./
