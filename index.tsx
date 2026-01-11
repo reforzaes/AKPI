@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -246,21 +245,18 @@ const App: React.FC = () => {
   };
 
   const getStatusInfo = (pct: number) => {
-    if (pct >= 100) return { label: 'DESTACADO', color: 'text-emerald-600', dot: 'bg-emerald-500' };
-    if (pct >= 80) return { label: 'EN PROGRESIÓN', color: 'text-amber-600', dot: 'bg-amber-500' };
-    return { label: 'CRÍTICO', color: 'text-rose-600', dot: 'bg-rose-500' };
+    if (pct >= 100) return { label: '¡MÁXIMO NIVEL!', color: 'text-emerald-600', dot: 'bg-emerald-500' };
+    if (pct >= 80) return { label: 'IMPULSO GANADOR', color: 'text-amber-600', dot: 'bg-amber-500' };
+    return { label: 'MODO GUERRERO', color: 'text-rose-600', dot: 'bg-rose-500' };
   };
 
   // Cálculo de objetivos agregados para el KPI seleccionado.
-  // Ahora suma TODOS los empleados de la sección que tengan asignado este KPI (p.ej. Mamparas compartido)
   const groupKpiStats = useMemo(() => {
-    // Buscamos todos los grupos de la sección actual
     const sectionGroupsKeys = Object.keys(CATEGORY_GROUPS).filter(gk => {
         const prefix = sec === 'Sanitario' ? 'SAN' : sec === 'Cocinas' ? 'COC' : sec === 'EERR' ? 'EERR' : 'JARDIN';
         return gk.startsWith(prefix);
     });
 
-    // Recopilamos empleados únicos de todos los grupos que tengan este KPI
     const relevantEmployeesMap = new Map<string, any>();
     
     if (sec === 'Madera') {
@@ -336,8 +332,8 @@ const App: React.FC = () => {
           <div className="flex justify-between gap-3 overflow-x-auto scrollbar-hide">
             {(['Sanitario', 'Cocinas', 'Madera', 'EERR', 'Jardin'] as Section[]).map(s => (
               <button key={s} onClick={() => handleSectionChange(s)} 
-                className={`flex-1 min-w-[150px] py-4 rounded-2xl font-black uppercase text-[12px] border-2 transition-all flex items-center justify-center gap-3 ${sec === s ? 'bg-indigo-700 border-indigo-700 text-white shadow-xl scale-[1.02]' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}>
-                {SECTION_CONFIG[s].icon} {s}
+                className={`flex-1 min-w-[150px] py-4 rounded-2xl font-black uppercase text-[12px] border-2 transition-all ${sec === s ? 'bg-indigo-700 border-indigo-700 text-white shadow-xl scale-[1.02]' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}>
+                {s}
               </button>
             ))}
           </div>
@@ -360,73 +356,75 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <main className="flex-1 max-w-7xl mx-auto px-6 py-12 w-full">
+      <main className={`flex-1 ${view === 'entry' ? 'w-full px-0' : 'max-w-7xl mx-auto px-6'} py-12`}>
         {view === 'entry' ? (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-indigo-50/50 p-8 rounded-[3rem] border border-indigo-100 shadow-inner flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="p-5 bg-white text-indigo-600 rounded-[1.5rem] shadow-sm border border-indigo-100">{getCatIcon(cat, 26)}</div>
-                  <div>
-                      <h2 className="text-3xl font-black tracking-tighter text-slate-800">{cat}</h2>
-                  </div>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objetivo Total KPI Grupo</span>
-                        <p className="text-lg font-black text-slate-800">{groupKpiStats.target} Ud.</p>
-                    </div>
-                    <div className="h-10 w-px bg-slate-200 mx-2"></div>
-                    <div className="text-right">
-                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Faltan para Objetivo</span>
-                        <p className="text-lg font-black text-rose-600">{groupKpiStats.missing} Ud.</p>
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="bg-indigo-50/50 p-8 rounded-[3rem] border border-indigo-100 shadow-inner flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="p-5 bg-white text-indigo-600 rounded-[1.5rem] shadow-sm border border-indigo-100">{getCatIcon(cat, 26)}</div>
+                    <div>
+                        <h2 className="text-3xl font-black tracking-tighter text-slate-800">{cat}</h2>
                     </div>
                   </div>
+                  <div className="text-right flex flex-col items-end">
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objetivo Total KPI Grupo</span>
+                          <p className="text-lg font-black text-slate-800">{groupKpiStats.target} Ud.</p>
+                      </div>
+                      <div className="h-10 w-px bg-slate-200 mx-2"></div>
+                      <div className="text-right">
+                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Faltan para Objetivo</span>
+                          <p className="text-lg font-black text-rose-600">{groupKpiStats.missing} Ud.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide bg-white/50 p-4 rounded-[2rem] border border-indigo-100/50">
-                {(sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS[grp]?.categories || [])).map((c: any) => (
-                  <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap flex items-center gap-3 p-3 px-6 rounded-2xl border-2 transition-all ${cat === c ? 'bg-white border-indigo-600 text-indigo-700 shadow-md scale-105' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-600'}`}>
-                    {getCatIcon(c, 20)}
-                    <span className="text-[10px] font-black uppercase tracking-widest">{c}</span>
-                  </button>
-                ))}
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide bg-white/50 p-4 rounded-[2rem] border border-indigo-100/50">
+                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS[grp]?.categories || [])).map((c: any) => (
+                    <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap flex items-center gap-3 p-3 px-6 rounded-2xl border-2 transition-all ${cat === c ? 'bg-white border-indigo-600 text-indigo-700 shadow-md scale-105' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-600'}`}>
+                      {getCatIcon(c, 20)}
+                      <span className="text-[10px] font-black uppercase tracking-widest">{c}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[3rem] border border-slate-200 bg-white shadow-2xl overflow-hidden">
-              <table className="w-full text-sm text-left">
+            <div className="overflow-x-auto bg-transparent">
+              <table className="w-full text-sm text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="p-8 font-black text-slate-600 sticky left-0 bg-slate-50 z-20 border-r uppercase text-[11px] tracking-widest min-w-[220px]">Colaborador</th>
-                    {MONTHS.map((m, i) => <th key={m} className={`p-4 font-black text-center text-[10px] uppercase tracking-widest ${i === month ? 'text-indigo-600 bg-indigo-100/30' : 'text-slate-400'}`}>{m.substring(0, 3)}</th>)}
+                  <tr className="bg-slate-100/50 border-y border-slate-200">
+                    <th className="p-8 font-black text-slate-600 sticky left-0 bg-slate-100/80 backdrop-blur-md z-20 border-r uppercase text-[11px] tracking-widest min-w-[240px]">Colaborador</th>
+                    {MONTHS.map((m, i) => <th key={m} className={`p-4 font-black text-center text-[10px] uppercase tracking-widest ${i === month ? 'text-indigo-600 bg-indigo-100/50' : 'text-slate-400'}`}>{m.substring(0, 3)}</th>)}
                     <th className="p-4 font-black text-indigo-700 text-center bg-indigo-50/50 uppercase text-[11px] tracking-widest w-28 border-l">Total</th>
                     <th className="p-4 font-black text-rose-600 text-center bg-rose-50/50 uppercase text-[11px] tracking-widest w-28 border-l">Faltan</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200/60">
                   {(sec === 'Madera' ? SECTION_CONFIG.Madera.employees : CATEGORY_GROUPS[grp]?.employees || []).map((emp: any) => {
                     const annualTarget = MONTHS.reduce((acc, _, i) => acc + getTarget(cat, i, emp.id), 0);
                     const totalRealizado = MONTHS.reduce((acc, _, i) => acc + (data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0), 0);
                     const faltan = Math.max(0, annualTarget - totalRealizado);
 
-                    return <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-8 font-bold text-slate-700 sticky left-0 bg-white z-10 border-r">{emp.name}</td>
+                    return <tr key={emp.id} className="hover:bg-indigo-50/30 transition-colors">
+                      <td className="p-8 font-bold text-slate-700 sticky left-0 bg-[#f8fafc] z-10 border-r">{emp.name}</td>
                       {MONTHS.map((_, i) => {
                         const val = data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0;
                         const target = getTarget(cat, i, emp.id);
-                        const color = val === 0 ? 'bg-white' : val >= target ? 'bg-emerald-50 text-emerald-700 font-black' : val >= target * 0.8 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600';
-                        return <td key={i} className={`p-3 border-r text-center ${color} ${i === month ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
+                        const color = val === 0 ? 'bg-transparent' : val >= target ? 'bg-emerald-500/10 text-emerald-700 font-black' : val >= target * 0.8 ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600';
+                        return <td key={i} className={`p-3 border-r border-slate-200/40 text-center ${color} ${i === month ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
                           <div className="flex flex-col items-center">
                             <input type="number" value={val || ''} disabled={isLocked(i) || !isEditMode} placeholder="0" onChange={(e) => onUpdate(emp.id, i, parseInt(e.target.value) || 0)} className="w-12 h-10 text-center bg-transparent font-black outline-none text-xl" />
                             <div className="text-[9px] font-black text-slate-400 uppercase mt-1">OBJ: {target}</div>
                           </div>
                         </td>
                       })}
-                      <td className="p-6 text-center font-black text-indigo-900 text-2xl border-l bg-slate-50/50">{totalRealizado}</td>
-                      <td className="p-6 text-center font-black text-rose-600 text-2xl border-l bg-rose-50/30">{faltan === 0 ? <span className="text-emerald-500 text-sm font-black">OK</span> : faltan}</td>
+                      <td className="p-6 text-center font-black text-indigo-900 text-2xl border-l border-slate-200 bg-indigo-50/20">{totalRealizado}</td>
+                      <td className="p-6 text-center font-black text-rose-600 text-2xl border-l border-slate-200 bg-rose-50/20">{faltan === 0 ? <span className="text-emerald-500 text-sm font-black">OK</span> : faltan}</td>
                     </tr>
                   })}
                 </tbody>
