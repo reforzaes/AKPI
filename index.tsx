@@ -8,11 +8,12 @@ import {
   Database, RefreshCw, Unlock, Lock, Target, ShowerHead, 
   TrendingUp, TrendingDown, ArrowRightLeft, 
   DoorClosed, LogIn, DoorOpen, Zap, Flower2, Sun, Wind, Battery, 
-  Sprout, Fence, Droplets, Hammer, Gem, Ruler, Users, User
+  Sprout, Fence, Droplets, Hammer, Gem, Ruler, Users, User, BookOpen, SmilePlus, ShoppingCart, LayoutGrid, ChevronRight, Utensils, TreeDeciduous
 } from 'lucide-react';
 import { 
   Section, MonthlyData, MonthStatus,
-  MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG, getTarget
+  MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG, getTarget, 
+  STRATEGIC_BLOCKS, INSTALLATION_SUB_CATEGORIES, calculateStrategicAchievement
 } from './types';
 
 const SCRIPT_URL = 'api.php';
@@ -21,15 +22,16 @@ const App: React.FC = () => {
   const [data, setData] = useState<MonthlyData[]>([]);
   const [statuses, setStatuses] = useState<MonthStatus[]>([]);
   const [sec, setSec] = useState<Section>('Sanitario');
-  const [cat, setCat] = useState<string>('Mamparas');
+  const [cat, setCat] = useState<string>('Cifra de Venta (%)');
   const [grp, setGrp] = useState<string>('SAN_VEND_ESP');
-  // Analítica es la página de inicio por defecto
   const [view, setView] = useState<'stats' | 'entry'>('stats');
   const [month, setMonth] = useState<number>(-1);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [pin, setPin] = useState('');
   
+  const [activeStrategicBlock, setActiveStrategicBlock] = useState<string | null>(null);
+
   const isEditMode = pin === '047';
 
   const init = async () => {
@@ -45,7 +47,7 @@ const App: React.FC = () => {
           month: parseInt(d.month_idx),
           category: d.category,
           section: d.section,
-          actual: parseInt(d.actual_value)
+          actual: parseFloat(d.actual_value)
         }));
         setData(mappedData);
       }
@@ -127,110 +129,147 @@ const App: React.FC = () => {
   }, [isEditMode, sec]);
 
   const isLocked = (mIdx: number) => statuses.find(s => s.month === mIdx && s.section === sec)?.isFilled ?? false;
-  const closedMonths = useMemo(() => statuses.filter(s => s.isFilled && s.section === sec).map(s => s.month), [statuses, sec]);
+  
+  // Meses que tienen al menos un dato > 0 para el grupo seleccionado
+  const activeMonthsWithData = useMemo(() => {
+    const emps = sec === 'Madera' ? SECTION_CONFIG.Madera.employees : (CATEGORY_GROUPS as any)[grp]?.employees || [];
+    const active = [];
+    for (let i = 0; i < 12; i++) {
+      const hasData = emps.some((emp: any) => 
+        data.some(d => d.employeeId === emp.id && d.month === i && d.section === sec && d.actual > 0)
+      );
+      if (hasData) active.push(i);
+    }
+    return active;
+  }, [data, sec, grp]);
 
   const handleSectionChange = (s: Section) => {
     setSec(s);
+    setActiveStrategicBlock(null);
+    const prefix = s === 'Sanitario' ? 'SAN' : s === 'Cocinas' ? 'COC' : s === 'EERR' ? 'EERR' : s === 'Jardin' ? 'JARDIN' : 'MADERA';
     if (s === 'Madera') {
       setCat(SECTION_CONFIG.Madera.categories[0]);
     } else {
-      const prefix = s === 'Sanitario' ? 'SAN' : s === 'Cocinas' ? 'COC' : s === 'EERR' ? 'EERR' : 'JARDIN';
-      const defaultGroup = `${prefix}_VEND_ESP`;
-      setGrp(defaultGroup);
-      setCat(CATEGORY_GROUPS[defaultGroup].categories[0]);
+      const isEsp = grp.includes('_ESP');
+      const newGrp = `${prefix}_VEND_${isEsp ? 'ESP' : 'PROJ'}`;
+      setGrp(newGrp);
+      setCat((CATEGORY_GROUPS as any)[newGrp]?.categories[0] || STRATEGIC_BLOCKS[0]);
     }
   };
 
-  const globalSectionPerformance = useMemo(() => {
-    if (closedMonths.length === 0) return 0;
-    let totalActual = 0;
-    let totalTarget = 0;
-    const cats = SECTION_CONFIG[sec].categories;
-    const emps = SECTION_CONFIG[sec].employees;
-
-    cats.forEach((c: string) => {
-      emps.forEach((emp: any) => {
-        closedMonths.forEach(mIdx => {
-          totalActual += data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
-          totalTarget += getTarget(c, mIdx, emp.id);
-        });
-      });
-    });
-    return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
-  }, [data, sec, closedMonths]);
+  const handleProfileChange = (isEsp: boolean) => {
+    const prefix = sec === 'Sanitario' ? 'SAN' : sec === 'Cocinas' ? 'COC' : sec === 'EERR' ? 'EERR' : sec === 'Jardin' ? 'JARDIN' : 'MADERA';
+    if (sec === 'Madera') return;
+    const newGrp = `${prefix}_VEND_${isEsp ? 'ESP' : 'PROJ'}`;
+    setGrp(newGrp);
+    setCat((CATEGORY_GROUPS as any)[newGrp]?.categories[0] || STRATEGIC_BLOCKS[0]);
+    setActiveStrategicBlock(null);
+  };
 
   const chartEvolutionData = useMemo(() => {
-    const cats = SECTION_CONFIG[sec].categories;
+    const groupCategories = sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS as any)[grp]?.categories || [];
+    const empsInGrp = sec === 'Madera' ? SECTION_CONFIG.Madera.employees : (CATEGORY_GROUPS as any)[grp]?.employees || [];
+
     return MONTHS.map((mName, mIdx) => {
-      const isMonthClosed = closedMonths.includes(mIdx);
+      const isMonthWithData = activeMonthsWithData.includes(mIdx);
       const row: any = { name: mName.substring(0, 3) };
       
-      cats.forEach((c: string) => {
-        if (!isMonthClosed) {
+      groupCategories.forEach((c: string) => {
+        if (!isMonthWithData) {
           row[c] = null;
-          row[c + '_actual'] = 0;
-          row[c + '_target'] = 0;
           return;
         }
         let sumActual = 0;
         let sumTarget = 0;
-        SECTION_CONFIG[sec].employees.forEach((emp: any) => {
-            sumActual += data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
-            sumTarget += getTarget(c, mIdx, emp.id);
+        
+        empsInGrp.forEach((emp: any) => {
+            const val = data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
+            if (STRATEGIC_BLOCKS.includes(c)) {
+              if (c === 'Instalaciones') {
+                row[c] = null; 
+              } else {
+                row[c] = calculateStrategicAchievement(c, val, 1);
+              }
+            } else {
+              sumActual += val;
+              sumTarget += getTarget(c, mIdx, emp.id);
+            }
         });
-        row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
-        row[c + '_actual'] = sumActual;
-        row[c + '_target'] = sumTarget;
+        if (!STRATEGIC_BLOCKS.includes(c)) {
+          row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
+        }
       });
       return row;
     });
-  }, [data, sec, closedMonths]);
+  }, [data, sec, grp, activeMonthsWithData]);
 
   const leaderboardData = useMemo(() => {
-    if (closedMonths.length === 0) return [];
-    const emps = SECTION_CONFIG[sec].employees;
+    if (activeMonthsWithData.length === 0) return [];
+    const emps = sec === 'Madera' ? SECTION_CONFIG.Madera.employees : (CATEGORY_GROUPS as any)[grp]?.employees || [];
+    const monthsActiveCount = activeMonthsWithData.length;
     
     return emps.map((emp: any) => {
-      let empCats: string[] = [];
-      let profileType = "VEND ESPECIALISTA";
+      let isSpecialistProfile = false;
+      let currentEmpCats: string[] = [];
 
-      if (sec === 'Madera') empCats = SECTION_CONFIG.Madera.categories;
-      else {
-        Object.keys(CATEGORY_GROUPS).forEach(gk => {
-          const g = CATEGORY_GROUPS[gk];
-          if (g.employees.some(e => e.id === emp.id) && g.categories.some(c => SECTION_CONFIG[sec].categories.includes(c))) {
-            empCats = g.categories;
-            profileType = g.title.toUpperCase();
-          }
+      Object.keys(CATEGORY_GROUPS).forEach(gk => {
+        const g = (CATEGORY_GROUPS as any)[gk];
+        if (g.employees.some((e: any) => e.id === emp.id) && g.categories.some((c: string) => SECTION_CONFIG[sec].categories.includes(c))) {
+          isSpecialistProfile = !!g.isSpecialist;
+          currentEmpCats = g.categories;
+        }
+      });
+
+      let pillars: any[] = [];
+
+      if (isSpecialistProfile) {
+        // KPIs Estratégicos
+        const ventaValues = activeMonthsWithData.map(m => data.find(d => d.employeeId === emp.id && d.month === m && d.category === 'Cifra de Venta (%)' && d.section === sec)?.actual || 0);
+        const ventaAvg = ventaValues.reduce((a, b) => a + b, 0) / monthsActiveCount;
+        pillars.push({ name: 'Venta', icon: <ShoppingCart size={14}/>, pct: calculateStrategicAchievement('Cifra de Venta (%)', ventaAvg, monthsActiveCount), raw: ventaAvg.toFixed(1) + '%' });
+
+        const formTotal = activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === 'Formación (h)' && d.section === sec)?.actual || 0), 0);
+        pillars.push({ name: 'Formación', icon: <BookOpen size={14}/>, pct: calculateStrategicAchievement('Formación (h)', formTotal, monthsActiveCount), raw: formTotal + 'h' });
+
+        const npsValues = activeMonthsWithData.map(m => data.find(d => d.employeeId === emp.id && d.month === m && d.category === 'NPS (%)' && d.section === sec)?.actual || 0);
+        const npsAvg = npsValues.reduce((a, b) => a + b, 0) / monthsActiveCount;
+        pillars.push({ name: 'NPS', icon: <SmilePlus size={14}/>, pct: calculateStrategicAchievement('NPS (%)', npsAvg, monthsActiveCount), raw: npsAvg.toFixed(1) + '%' });
+
+        // Instalaciones (Agregado de subcategorías)
+        const subCats = INSTALLATION_SUB_CATEGORIES[sec] || [];
+        let totalInstActual = 0, totalInstTarget = 0;
+        subCats.forEach(sc => {
+          totalInstActual += activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === sc && d.section === sec)?.actual || 0), 0);
+          totalInstTarget += activeMonthsWithData.reduce((acc, m) => acc + getTarget(sc, m, emp.id), 0);
+        });
+        const instPct = totalInstTarget > 0 ? (totalInstActual / totalInstTarget) * 100 : 0;
+        pillars.push({ name: 'Instalaciones', icon: <Hammer size={14}/>, pct: instPct, raw: totalInstActual + ' ud' });
+      } else {
+        const empCats = (sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c));
+        pillars = empCats.map((c: string) => {
+          const act = activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === c && d.section === sec)?.actual || 0), 0);
+          const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(c, m, emp.id), 0);
+          return { name: c, icon: getCatIcon(c, 14), pct: tar > 0 ? (act / tar) * 100 : 0, raw: act + ' ud' };
         });
       }
 
-      let totalActual = 0, totalTarget = 0;
-      const kpis = empCats.map(c => {
-        const act = closedMonths.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === c && d.section === sec)?.actual || 0), 0);
-        const tar = closedMonths.reduce((acc, m) => acc + getTarget(c, m, emp.id), 0);
-        totalActual += act;
-        totalTarget += tar;
-        return {
-          category: c,
-          percentage: tar > 0 ? Math.round((act / tar) * 100) : 0,
-          actual: act,
-          target: tar
-        };
-      });
-
-      const globalPercentage = totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
+      const globalPercentage = Math.round(pillars.reduce((acc, p) => acc + p.pct, 0) / Math.max(1, pillars.length));
       
       return {
         id: emp.id,
         fullName: emp.name,
-        profileType,
+        profileType: isSpecialistProfile ? 'ESPECIALISTA' : 'PROYECTO',
         percentage: globalPercentage,
-        units: totalActual,
-        kpiBreakdown: kpis
+        pillars,
+        isSpecialist: isSpecialistProfile
       };
     }).sort((a, b) => b.percentage - a.percentage);
-  }, [data, sec, closedMonths]);
+  }, [data, sec, grp, activeMonthsWithData]);
+
+  const globalSectionPerformance = useMemo(() => {
+    if (leaderboardData.length === 0) return 0;
+    return Math.round(leaderboardData.reduce((acc, l) => acc + l.percentage, 0) / leaderboardData.length);
+  }, [leaderboardData]);
 
   const getCatIcon = (c: string, size = 18) => {
     const icons: any = { 
@@ -239,7 +278,9 @@ const App: React.FC = () => {
       'Puertas de Entrada': <LogIn size={size}/>, 'Puertas de Paso': <DoorOpen size={size}/>, 'Reforma Cocinas': <Hammer size={size}/>,
       'CBxP + PxP': <ArrowRightLeft size={size}/>, 'Reformas': <Hammer size={size}/>,
       'Placas Solares': <Sun size={size}/>, 'Aerotermia': <Wind size={size}/>, 'Baterías': <Battery size={size}/>, 'Instalación EERR': <Zap size={size}/>,
-      'Césped Artificial': <Sprout size={size}/>, 'Cercados': <Fence size={size}/>, 'Riego': <Droplets size={size}/>, 'Reformas Jardín': <Flower2 size={size}/>
+      'Césped Artificial': <Sprout size={size}/>, 'Cercados': <Fence size={size}/>, 'Riego': <Droplets size={size}/>, 'Reformas Jardín': <Flower2 size={size}/>,
+      'Cifra de Venta (%)': <ShoppingCart size={size}/>, 'Formación (h)': <BookOpen size={size}/>, 'NPS (%)': <SmilePlus size={size}/>,
+      'Instalaciones': <LayoutGrid size={size}/>
     };
     return icons[c] || <Target size={size}/>;
   };
@@ -250,181 +291,182 @@ const App: React.FC = () => {
     return { label: 'MODO GUERRERO', color: 'text-rose-600', dot: 'bg-rose-500' };
   };
 
-  // Cálculo de objetivos agregados para el KPI seleccionado.
-  const groupKpiStats = useMemo(() => {
-    const sectionGroupsKeys = Object.keys(CATEGORY_GROUPS).filter(gk => {
-        const prefix = sec === 'Sanitario' ? 'SAN' : sec === 'Cocinas' ? 'COC' : sec === 'EERR' ? 'EERR' : 'JARDIN';
-        return gk.startsWith(prefix);
-    });
-
-    const relevantEmployeesMap = new Map<string, any>();
-    
-    if (sec === 'Madera') {
-        if (SECTION_CONFIG.Madera.categories.includes(cat)) {
-            SECTION_CONFIG.Madera.employees.forEach((e: any) => relevantEmployeesMap.set(e.id, e));
-        }
-    } else {
-        sectionGroupsKeys.forEach(gk => {
-            const group = CATEGORY_GROUPS[gk];
-            if (group.categories.includes(cat)) {
-                group.employees.forEach(e => relevantEmployeesMap.set(e.id, e));
-            }
-        });
-    }
-
-    const relevantEmployees = Array.from(relevantEmployeesMap.values());
-    let totalTarget = 0;
-    let totalActual = 0;
-    
-    relevantEmployees.forEach((emp: any) => {
-        MONTHS.forEach((_, i) => {
-            totalTarget += getTarget(cat, i, emp.id);
-            totalActual += data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0;
-        });
-    });
-
-    return {
-        target: totalTarget,
-        actual: totalActual,
-        missing: Math.max(0, totalTarget - totalActual)
-    };
-  }, [data, cat, sec]);
-
   const COLORS = ['#ef4444', '#6366f1', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase text-[10px] tracking-[0.4em] animate-pulse">Sincronizando Base de Datos...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase text-[10px] tracking-[0.4em] animate-pulse">Iniciando Sistema...</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 h-20 flex items-center shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 w-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-100"><Database size={22} /></div>
-            <h1 className="font-black text-xl tracking-tighter text-slate-800">Performance <span className="text-indigo-600">2026</span></h1>
-            {syncing && <RefreshCw className="animate-spin text-indigo-500 ml-2" size={16} />}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm overflow-hidden">
+        <div className="max-w-screen-2xl mx-auto px-4 lg:px-6">
+          <div className="flex items-center justify-between h-14 lg:h-16">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-100 hidden sm:block"><Database size={18} /></div>
+              <h1 className="font-black text-sm lg:text-lg tracking-tighter text-slate-800 whitespace-nowrap">Objetivos <span className="text-indigo-600">2026</span></h1>
+              {syncing && <RefreshCw className="animate-spin text-indigo-500" size={14} />}
+            </div>
+
+            <div className="flex items-center gap-2 lg:gap-4">
+              <div className="bg-slate-50 p-0.5 rounded-xl border border-slate-200 flex items-center">
+                <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="bg-transparent text-[9px] font-black uppercase outline-none px-2 text-indigo-700">
+                  <option value={-1}>Acumulado</option>
+                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                </select>
+                <button onClick={() => toggleStatus(month)} disabled={!isEditMode || month === -1} className={`p-2 rounded-lg transition-all ${isLocked(month) ? 'text-green-600' : 'text-slate-300'}`}>
+                  {isLocked(month) ? <Lock size={12} /> : <Unlock size={12} />}
+                </button>
+              </div>
+
+              <div className="bg-slate-50 p-0.5 rounded-xl border border-slate-200 flex items-center">
+                <button onClick={() => setView('stats')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${view === 'stats' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Analisis</button>
+                <button onClick={() => setView('entry')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${view === 'entry' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Datos</button>
+              </div>
+
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${isEditMode ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" className="w-6 bg-transparent text-center text-[9px] font-black outline-none text-current placeholder:text-slate-400" maxLength={3} />
+                {isEditMode ? <Unlock size={12} /> : <Lock size={12} />}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="bg-slate-100 p-1 rounded-2xl flex border border-slate-200">
-                <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="bg-transparent text-[11px] font-black uppercase outline-none px-4 text-indigo-700">
-                    <option value={-1}>Acumulado</option>
-                    {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-                </select>
-                <button onClick={() => toggleStatus(month)} disabled={!isEditMode || month === -1} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-all ${isLocked(month) ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'}`}>
-                    {isLocked(month) ? <Lock size={14} /> : <Unlock size={14} />}
-                    {month === -1 ? '----' : (isLocked(month) ? 'CERRADO' : 'ABIERTO')}
+          <div className="flex flex-col lg:flex-row items-center justify-between border-t border-slate-100 py-2 gap-3">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide w-full lg:w-auto">
+              {(['Sanitario', 'Cocinas', 'Madera', 'EERR', 'Jardin'] as Section[]).map(s => {
+                const isActive = sec === s;
+                return (
+                  <button key={s} onClick={() => handleSectionChange(s)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 whitespace-nowrap ${isActive ? 'bg-indigo-700 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                    {s === 'Sanitario' && <ShowerHead size={12} />}
+                    {s === 'Cocinas' && <Utensils size={12} />}
+                    {s === 'Madera' && <TreeDeciduous size={12} />}
+                    {s === 'EERR' && <Zap size={12} />}
+                    {s === 'Jardin' && <Flower2 size={12} />}
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+
+            {sec !== 'Madera' && (
+              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center border border-slate-200">
+                <button onClick={() => handleProfileChange(true)} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 ${grp.includes('_ESP') ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400'}`}>
+                  <User size={10} /> Especialista
                 </button>
-            </div>
-            <div className="bg-slate-100 p-1.5 rounded-2xl flex border border-slate-200">
-              <button onClick={() => setView('stats')} className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${view === 'stats' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'}`}>Analítica</button>
-              <button onClick={() => setView('entry')} className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${view === 'entry' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'}`}>Registro</button>
-            </div>
-            <div className={`flex items-center gap-2 px-5 py-2.5 rounded-full border transition-all ${isEditMode ? 'bg-green-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}>
-              <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" className="w-10 bg-transparent text-center text-xs font-black outline-none text-white placeholder:text-slate-500" maxLength={3} />
-              {isEditMode ? <Unlock size={14} /> : <Lock size={14} />}
-            </div>
+                <button onClick={() => handleProfileChange(false)} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 ${grp.includes('_PROJ') ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400'}`}>
+                  <Target size={10} /> Proyecto
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <div className="bg-white border-b border-slate-200 py-6 sticky top-20 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 space-y-6">
-          <div className="flex justify-between gap-3 overflow-x-auto scrollbar-hide">
-            {(['Sanitario', 'Cocinas', 'Madera', 'EERR', 'Jardin'] as Section[]).map(s => (
-              <button key={s} onClick={() => handleSectionChange(s)} 
-                className={`flex-1 min-w-[150px] py-4 rounded-2xl font-black uppercase text-[12px] border-2 transition-all ${sec === s ? 'bg-indigo-700 border-indigo-700 text-white shadow-xl scale-[1.02]' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}>
-                {s}
-              </button>
-            ))}
-          </div>
-
-          {view === 'entry' && sec !== 'Madera' && (
-            <div className="flex gap-2 p-1.5 bg-slate-50 rounded-2xl border border-slate-200 w-full max-w-lg mx-auto">
-              {['Esp', 'Proj'].map(type => {
-                  const sPrefix = sec === 'Sanitario' ? 'SAN' : sec === 'Cocinas' ? 'COC' : sec === 'EERR' ? 'EERR' : 'JARDIN';
-                  const k = `${sPrefix}_VEND_${type.toUpperCase()}`;
-                  if (!CATEGORY_GROUPS[k]) return null;
-                  return (
-                    <button key={k} onClick={() => { setGrp(k); setCat(CATEGORY_GROUPS[k].categories[0]); }}
-                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${grp === k ? 'bg-white text-indigo-700 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}>
-                      <User size={14}/> {CATEGORY_GROUPS[k].title}
-                    </button>
-                  );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <main className={`flex-1 ${view === 'entry' ? 'w-full px-0' : 'max-w-7xl mx-auto px-6'} py-12`}>
+      <main className={`flex-1 ${view === 'entry' ? 'w-full' : 'max-w-screen-2xl mx-auto px-4 lg:px-6'} py-6 lg:py-10`}>
         {view === 'entry' ? (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="bg-indigo-50/50 p-8 rounded-[3rem] border border-indigo-100 shadow-inner flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <div className="p-5 bg-white text-indigo-600 rounded-[1.5rem] shadow-sm border border-indigo-100">{getCatIcon(cat, 26)}</div>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="max-w-screen-2xl mx-auto px-4 lg:px-6">
+              <div className="bg-white p-4 lg:p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">{getCatIcon(cat, 22)}</div>
                     <div>
-                        <h2 className="text-3xl font-black tracking-tighter text-slate-800">{cat}</h2>
+                      <h2 className="text-xl font-black tracking-tight text-slate-800">{cat}</h2>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sección: {sec} | {grp.includes('_ESP') ? 'Perfil Especialista' : 'Perfil Proyecto'}</p>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end">
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objetivo Total KPI Grupo</span>
-                          <p className="text-lg font-black text-slate-800">{groupKpiStats.target} Ud.</p>
-                      </div>
-                      <div className="h-10 w-px bg-slate-200 mx-2"></div>
-                      <div className="text-right">
-                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Faltan para Objetivo</span>
-                          <p className="text-lg font-black text-rose-600">{groupKpiStats.missing} Ud.</p>
-                      </div>
+                  
+                  {activeStrategicBlock === 'Instalaciones' ? (
+                     <button onClick={() => setActiveStrategicBlock(null)} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2 transition-all hover:scale-105 active:scale-95">
+                        <ChevronRight size={14} className="rotate-180" /> Volver a Objetivos globales
+                     </button>
+                  ) : (
+                    <div className="hidden sm:flex flex-col items-end">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">RETO ACTUAL</span>
+                      <p className="text-sm font-black text-indigo-600">
+                        {cat === 'Formación (h)' ? '35h Anuales' : cat === 'NPS (%)' ? '70% NPS' : cat === 'Cifra de Venta (%)' ? '+10.6% Crec.' : 'Reto Operativo'}
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide bg-white/50 p-4 rounded-[2rem] border border-indigo-100/50">
-                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS[grp]?.categories || [])).map((c: any) => (
-                    <button key={c} onClick={() => setCat(c)} className={`whitespace-nowrap flex items-center gap-3 p-3 px-6 rounded-2xl border-2 transition-all ${cat === c ? 'bg-white border-indigo-600 text-indigo-700 shadow-md scale-105' : 'bg-transparent border-transparent text-slate-400 hover:text-indigo-600'}`}>
-                      {getCatIcon(c, 20)}
-                      <span className="text-[10px] font-black uppercase tracking-widest">{c}</span>
-                    </button>
-                  ))}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide border-t border-slate-50 pt-4">
+                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.categories : ((CATEGORY_GROUPS as any)[grp]?.categories || []))
+                    .filter(c => STRATEGIC_BLOCKS.includes(c) || activeStrategicBlock === 'Instalaciones')
+                    .map((c: any) => {
+                      const isSub = INSTALLATION_SUB_CATEGORIES[sec]?.includes(c);
+                      if (activeStrategicBlock === 'Instalaciones' && !isSub && c !== 'Instalaciones') return null;
+                      if (!activeStrategicBlock && isSub) return null;
+                      
+                      const isActive = cat === c;
+                      return (
+                        <button key={c} onClick={() => { 
+                            setCat(c); 
+                            if (c === 'Instalaciones') {
+                                setActiveStrategicBlock('Instalaciones');
+                                setCat(INSTALLATION_SUB_CATEGORIES[sec][0]);
+                            }
+                        }} className={`whitespace-nowrap flex items-center gap-3 p-3 px-5 rounded-xl border transition-all ${isActive ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                          {getCatIcon(c, 14)}
+                          <span className="text-[9px] font-black uppercase tracking-widest">{c}</span>
+                        </button>
+                      );
+                  })}
                 </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto bg-transparent">
-              <table className="w-full text-sm text-left border-collapse">
+            <div className="overflow-x-auto bg-[#f8fafc]">
+              <table className="w-full text-sm text-left border-collapse border-y border-slate-200">
                 <thead>
-                  <tr className="bg-slate-100/50 border-y border-slate-200">
-                    <th className="p-8 font-black text-slate-600 sticky left-0 bg-slate-100/80 backdrop-blur-md z-20 border-r uppercase text-[11px] tracking-widest min-w-[240px]">Colaborador</th>
-                    {MONTHS.map((m, i) => <th key={m} className={`p-4 font-black text-center text-[10px] uppercase tracking-widest ${i === month ? 'text-indigo-600 bg-indigo-100/50' : 'text-slate-400'}`}>{m.substring(0, 3)}</th>)}
-                    <th className="p-4 font-black text-indigo-700 text-center bg-indigo-50/50 uppercase text-[11px] tracking-widest w-28 border-l">Total</th>
-                    <th className="p-4 font-black text-rose-600 text-center bg-rose-50/50 uppercase text-[11px] tracking-widest w-28 border-l">Faltan</th>
+                  <tr className="bg-slate-100/50">
+                    <th className="p-6 font-black text-slate-600 sticky left-0 bg-slate-100/80 backdrop-blur-md z-20 border-r uppercase text-[10px] tracking-widest min-w-[200px]">Colaborador</th>
+                    {MONTHS.map((m, i) => <th key={m} className={`p-3 font-black text-center text-[9px] uppercase tracking-widest ${i === month ? 'text-indigo-600 bg-indigo-100/50' : 'text-slate-400'}`}>{m.substring(0, 3)}</th>)}
+                    <th className="p-3 font-black text-indigo-700 text-center bg-indigo-50/50 uppercase text-[10px] tracking-widest w-24 border-l">Cumpl.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/60">
-                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.employees : CATEGORY_GROUPS[grp]?.employees || []).map((emp: any) => {
-                    const annualTarget = MONTHS.reduce((acc, _, i) => acc + getTarget(cat, i, emp.id), 0);
-                    const totalRealizado = MONTHS.reduce((acc, _, i) => acc + (data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0), 0);
-                    const faltan = Math.max(0, annualTarget - totalRealizado);
+                <tbody className="divide-y divide-slate-200">
+                  {(sec === 'Madera' ? SECTION_CONFIG.Madera.employees : (CATEGORY_GROUPS as any)[grp]?.employees || []).map((emp: any) => {
+                    const monthValues = MONTHS.map((_, i) => data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0);
+                    const totalVal = monthValues.reduce((acc, v) => acc + v, 0);
+                    
+                    let currentAch = 0;
+                    if (STRATEGIC_BLOCKS.includes(cat) && cat !== 'Instalaciones') {
+                        const activeMonthsCountInGroup = monthValues.filter(v => v !== 0).length || 1;
+                        const avg = totalVal / activeMonthsCountInGroup;
+                        currentAch = calculateStrategicAchievement(cat, cat === 'Formación (h)' ? totalVal : avg, activeMonthsCountInGroup);
+                    } else {
+                        const totalTarget = MONTHS.reduce((acc, _, i) => acc + getTarget(cat, i, emp.id), 0);
+                        currentAch = totalTarget > 0 ? (totalVal / totalTarget) * 100 : 0;
+                    }
 
-                    return <tr key={emp.id} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="p-8 font-bold text-slate-700 sticky left-0 bg-[#f8fafc] z-10 border-r">{emp.name}</td>
+                    return <tr key={emp.id} className="hover:bg-indigo-50/20 transition-colors">
+                      <td className="p-6 font-bold text-slate-700 sticky left-0 bg-[#f8fafc] z-10 border-r text-xs">{emp.name}</td>
                       {MONTHS.map((_, i) => {
-                        const val = data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0;
+                        const val = monthValues[i];
                         const target = getTarget(cat, i, emp.id);
-                        const color = val === 0 ? 'bg-transparent' : val >= target ? 'bg-emerald-500/10 text-emerald-700 font-black' : val >= target * 0.8 ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600';
-                        return <td key={i} className={`p-3 border-r border-slate-200/40 text-center ${color} ${i === month ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
+                        
+                        let color = 'bg-transparent';
+                        if (val !== 0) {
+                          if (STRATEGIC_BLOCKS.includes(cat) && cat !== 'Instalaciones') {
+                             const ach = calculateStrategicAchievement(cat, val, 1);
+                             color = ach >= 100 ? 'bg-emerald-500/10 text-emerald-700' : ach >= 80 ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600';
+                          } else {
+                             color = val >= target ? 'bg-emerald-500/10 text-emerald-700' : val >= target * 0.8 ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600';
+                          }
+                        }
+
+                        return <td key={i} className={`p-2 border-r border-slate-200/40 text-center ${color} ${i === month ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
                           <div className="flex flex-col items-center">
-                            <input type="number" value={val || ''} disabled={isLocked(i) || !isEditMode} placeholder="0" onChange={(e) => onUpdate(emp.id, i, parseInt(e.target.value) || 0)} className="w-12 h-10 text-center bg-transparent font-black outline-none text-xl" />
-                            <div className="text-[9px] font-black text-slate-400 uppercase mt-1">OBJ: {target}</div>
+                            <input type="number" step="0.1" value={val || ''} disabled={isLocked(i) || !isEditMode} placeholder="0" onChange={(e) => onUpdate(emp.id, i, parseFloat(e.target.value) || 0)} className="w-full max-w-[48px] h-8 text-center bg-transparent font-black outline-none text-base" />
+                            {!STRATEGIC_BLOCKS.includes(cat) && <div className="text-[7px] font-black text-slate-400 uppercase mt-0.5 whitespace-nowrap">Obj: {target}</div>}
+                            {cat === 'Formación (h)' && <div className="text-[7px] font-black text-slate-400 uppercase mt-0.5 whitespace-nowrap">Reto: {target}h</div>}
                           </div>
                         </td>
                       })}
-                      <td className="p-6 text-center font-black text-indigo-900 text-2xl border-l border-slate-200 bg-indigo-50/20">{totalRealizado}</td>
-                      <td className="p-6 text-center font-black text-rose-600 text-2xl border-l border-slate-200 bg-rose-50/20">{faltan === 0 ? <span className="text-emerald-500 text-sm font-black">OK</span> : faltan}</td>
+                      <td className="p-4 text-center border-l border-slate-200 bg-white">
+                        <span className={`text-base font-black ${currentAch >= 100 ? 'text-emerald-600' : currentAch >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>
+                            {Math.round(currentAch)}%
+                        </span>
+                      </td>
                     </tr>
                   })}
                 </tbody>
@@ -432,105 +474,107 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-2xl relative overflow-hidden">
-                <div className="flex items-center justify-between mb-12">
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Gráfico de Evolución */}
+            <div className="bg-white p-8 lg:p-12 rounded-[3rem] border border-slate-100 shadow-xl relative overflow-hidden">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-10 gap-6">
                     <div className="flex items-center gap-5">
-                        <div className="p-4 bg-indigo-50 text-indigo-600 rounded-[1.2rem] shadow-sm"><TrendingUp size={28} /></div>
+                        <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm"><TrendingUp size={24} /></div>
                         <div>
-                            <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-800">Evolución de KPIs ({sec.toUpperCase()})</h3>
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Métricas porcentuales vs Objetivos Unitarios</p>
+                            <h3 className="text-xl font-black uppercase tracking-tighter text-slate-800">Evolución Estratégica {sec}</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Perfíl: {grp.includes('_ESP') ? 'Especialista' : 'Proyecto'}</span>
+                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">| Meses analizados: {activeMonthsWithData.length > 0 ? activeMonthsWithData.map(m => MONTHS[m].substring(0,3)).join(', ') : 'Ninguno'}</span>
+                            </div>
                         </div>
                     </div>
                     <div className="flex flex-col items-end">
                       <div className="flex items-baseline gap-2">
-                        <span className={`text-4xl font-black ${globalSectionPerformance >= 100 ? 'text-emerald-600' : globalSectionPerformance >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>
+                        <span className={`text-4xl lg:text-5xl font-black ${globalSectionPerformance >= 100 ? 'text-emerald-600' : globalSectionPerformance >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>
                           {globalSectionPerformance}%
                         </span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CUMPLIMIENTO GLOBAL SECCIÓN</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">GLOBAL SECCIÓN ({grp.includes('_ESP') ? 'ESP' : 'PROJ'})</span>
                     </div>
                 </div>
-                <div className="h-[450px]">
+                <div className="h-[350px] lg:h-[450px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartEvolutionData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                        <LineChart data={chartEvolutionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 900}} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
-                            <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 11, fontWeight: 900}} ticks={[0, 35, 70, 105, 125]} axisLine={false} tickLine={false} label={{ value: 'CUMPLIMIENTO %', angle: -90, position: 'insideLeft', offset: 0, fontSize: 10, fontWeight: 900, fill: '#6366f1' }} />
+                            <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
+                            <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 10, fontWeight: 900}} ticks={[0, 25, 50, 75, 100, 125]} axisLine={false} tickLine={false} />
                             <Tooltip 
-                                contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '20px'}} 
-                                itemStyle={{fontSize: '12px', fontWeight: 800, textTransform: 'uppercase'}} 
-                                labelStyle={{fontSize: '11px', fontWeight: 900, marginBottom: '8px', color: '#64748b'}} 
-                                formatter={(val: any, name: string, props: any) => {
-                                    const actual = props.payload[name + '_actual'] || 0;
-                                    const target = props.payload[name + '_target'] || 0;
-                                    return [`${val}% (${actual} / ${target} ud)`, name];
-                                }} 
+                                contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} 
+                                itemStyle={{fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'}} 
+                                labelStyle={{fontSize: '10px', fontWeight: 900, marginBottom: '6px', color: '#64748b'}} 
+                                formatter={(val: any, name: string) => [`${val}%`, name]} 
                             />
-                            <Legend wrapperStyle={{paddingTop: '30px', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'}} iconType="circle" iconSize={10} />
-                            <ReferenceLine y={100} stroke="#10b981" strokeDasharray="12 6" strokeWidth={2.5} label={{ position: 'right', value: 'META', fill: '#10b981', fontSize: 11, fontWeight: 900 }} />
-                            {SECTION_CONFIG[sec].categories.map((c: string, i: number) => (
-                                <Line key={c} type="monotone" dataKey={c} name={c} stroke={COLORS[i % COLORS.length]} strokeWidth={4} dot={{ r: 6, strokeWidth: 4, fill: '#fff' }} activeDot={{ r: 9, strokeWidth: 0 }} connectNulls={false} />
+                            <Legend wrapperStyle={{paddingTop: '30px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'}} iconType="circle" iconSize={8} />
+                            <ReferenceLine y={100} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
+                            {(sec === 'Madera' ? SECTION_CONFIG.Madera.categories : (CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c) || (c !== 'Instalaciones')).map((c: string, i: number) => (
+                                <Line key={c} type="monotone" dataKey={c} name={c} stroke={COLORS[i % COLORS.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
                             ))}
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
+            {/* Ranking de Rendimiento */}
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tighter flex items-center gap-3 uppercase">
-                        <Users className="text-indigo-600" /> Rendimiento por Vendedor
+                    <h3 className="text-xl font-black text-slate-800 tracking-tighter flex items-center gap-3 uppercase">
+                        <Users className="text-indigo-600" /> Ranking por Rendimiento ({grp.includes('_ESP') ? 'ESPECIALISTAS' : 'PROYECTO'})
                     </h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
                     {leaderboardData.map((info, idx) => {
                         const status = getStatusInfo(info.percentage);
                         const isUp = info.percentage >= 80;
                         return (
-                            <div key={idx} className="bg-white rounded-[3.5rem] p-12 border border-slate-100 shadow-2xl hover:shadow-indigo-100/50 transition-all flex flex-col group relative overflow-hidden">
-                                <div className="flex justify-between items-start mb-10">
-                                    <div>
-                                        <h4 className="text-3xl font-black text-slate-800 tracking-tighter mb-1">{info.fullName}</h4>
-                                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">PERFIL: {info.profileType}</p>
+                            <div key={idx} className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-100 shadow-lg hover:shadow-indigo-100/50 transition-all flex flex-col group relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-8">
+                                    <div className="flex items-center gap-4">
+                                      <div className="w-12 h-12 bg-indigo-600 text-white flex items-center justify-center rounded-2xl font-black text-xl shadow-md">
+                                        {info.fullName.charAt(0)}
+                                      </div>
+                                      <div>
+                                          <h4 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">{info.fullName}</h4>
+                                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{info.profileType}</p>
+                                      </div>
                                     </div>
-                                    <div className={`p-4 rounded-2xl ${isUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'} border border-slate-50 shadow-sm`}>
-                                        {isUp ? <TrendingUp size={28}/> : <TrendingDown size={28}/>}
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-end mb-4">
-                                    <div>
-                                        <span className={`text-6xl font-black tracking-tighter ${info.percentage >= 100 ? 'text-emerald-600' : info.percentage >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>
-                                            {info.percentage}%
-                                        </span>
-                                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1">TOTAL GLOBAL</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-xl font-black text-slate-800">{info.units} UNID.</span>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">INSTALADAS</p>
+                                    <div className={`px-4 py-2 rounded-xl text-center flex flex-col items-center ${isUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                        <span className="text-2xl font-black tracking-tighter">{info.percentage}%</span>
+                                        <span className="text-[7px] font-black uppercase">Media</span>
                                     </div>
                                 </div>
-                                <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden mb-10 border border-slate-50">
-                                    <div className={`h-full rounded-full transition-all duration-1000 ${info.percentage >= 100 ? 'bg-emerald-500' : info.percentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(info.percentage, 100)}%` }}></div>
-                                </div>
-                                <div className="space-y-4 mb-10">
-                                    <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">DESGLOSE POR KPI:</h5>
-                                    {info.kpiBreakdown.map((kpi, kIdx) => (
-                                        <div key={kIdx} className={`p-5 rounded-2xl flex items-center justify-between border ${kpi.percentage >= 100 ? 'bg-emerald-50/40 border-emerald-100/50' : 'bg-rose-50/40 border-rose-100/50'} transition-all hover:scale-[1.01]`}>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-slate-400 bg-white p-2 rounded-xl border border-slate-50 shadow-sm">{getCatIcon(kpi.category, 16)}</div>
-                                                <span className="text-[13px] font-black text-slate-700 uppercase tracking-tight">{kpi.category}</span>
+
+                                <div className="space-y-4 mb-8">
+                                    <h5 className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">OBJETIVOS GLOBALES:</h5>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {info.pillars.map((pillar: any, pIdx: number) => (
+                                            <div key={pIdx} className={`p-3 rounded-2xl border transition-all hover:scale-105 ${pillar.pct >= 100 ? 'bg-emerald-50/30 border-emerald-100/40' : pillar.pct >= 80 ? 'bg-amber-50/30 border-amber-100/40' : 'bg-rose-50/30 border-rose-100/40'}`}>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <div className="text-slate-500">{pillar.icon}</div>
+                                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-tight">{pillar.name}</span>
+                                                </div>
+                                                <div className="flex items-baseline justify-between">
+                                                  <span className="text-lg font-black text-slate-800">{Math.round(pillar.pct)}%</span>
+                                                  <span className="text-[8px] font-bold text-slate-400">{pillar.raw}</span>
+                                                </div>
+                                                <div className="w-full h-1 bg-slate-200/50 rounded-full mt-2 overflow-hidden">
+                                                  <div className={`h-full rounded-full ${pillar.pct >= 100 ? 'bg-emerald-500' : pillar.pct >= 80 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pillar.pct, 100)}%` }}></div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className={`text-[15px] font-black ${kpi.percentage >= 100 ? 'text-emerald-600' : kpi.percentage >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>{kpi.percentage}%</span>
-                                                <span className="text-[11px] font-bold text-slate-400 italic">({kpi.actual} ud)</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="mt-auto pt-6 border-t border-slate-50 flex items-center gap-3">
-                                    <div className={`w-3 h-3 rounded-full ${status.dot} animate-pulse`}></div>
-                                    <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${status.color}`}>{status.label}</span>
+                                
+                                <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></div>
+                                      <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${status.color}`}>{status.label}</span>
+                                    </div>
+                                    {isUp ? <TrendingUp size={16} className="text-emerald-500" /> : <TrendingDown size={16} className="text-rose-500" />}
                                 </div>
                             </div>
                         );
@@ -540,9 +584,10 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
-      <footer className="py-20 text-center border-t border-slate-100 bg-white">
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">
-              Seguimiento KPI Estragicos © 2026 | Leroy Merlin
+
+      <footer className="py-12 text-center border-t border-slate-100 bg-white">
+          <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em]">
+              Objetivos 2026 | By Javier González
           </p>
       </footer>
     </div>
