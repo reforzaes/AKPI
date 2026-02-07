@@ -200,22 +200,47 @@ const App: React.FC = () => {
   const chartEvolutionData = useMemo(() => {
     const groupCategories = (CATEGORY_GROUPS as any)[grp]?.categories || [];
     const empsInGrp = (CATEGORY_GROUPS as any)[grp]?.employees || [];
+    
     return MONTHS.map((mName, mIdx) => {
       const isMonthWithData = activeMonthsWithData.includes(mIdx);
       const row: any = { name: mName.substring(0, 3) };
+      
       groupCategories.forEach((c: string) => {
-        if (!isMonthWithData) { row[c] = null; return; }
-        let sumActual = 0, sumTarget = 0;
+        if (!isMonthWithData) {
+          row[c] = null;
+          return;
+        }
+
+        let totalAchievement = 0;
+        let count = 0;
+
         empsInGrp.forEach((emp: any) => {
           const val = data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
+          let ach = 0;
+
           if (STRATEGIC_BLOCKS.includes(c)) {
-            if (c !== 'Instalaciones') row[c] = calculateStrategicAchievement(c, val, 1, sec);
+            if (c === 'Instalaciones') {
+              const subCats = INSTALLATION_SUB_CATEGORIES[sec] || [];
+              let instAct = 0, instTar = 0;
+              subCats.forEach(sc => {
+                instAct += data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === sc && d.section === sec)?.actual || 0;
+                instTar += getTarget(sc, mIdx, sec, emp.id);
+              });
+              ach = instTar > 0 ? (instAct / instTar) * 100 : 0;
+            } else {
+              ach = calculateStrategicAchievement(c, val, 1, sec);
+            }
           } else {
-            sumActual += val;
-            sumTarget += getTarget(c, mIdx, sec, emp.id);
+            const target = getTarget(c, mIdx, sec, emp.id);
+            ach = target > 0 ? (val / target) * 100 : (val > 0 ? 100 : 0);
           }
+          
+          totalAchievement += ach;
+          count++;
         });
-        if (!STRATEGIC_BLOCKS.includes(c)) row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
+
+        // Calculamos la MEDIA de consecución del equipo para esta categoría
+        row[c] = count > 0 ? Math.round(totalAchievement / count) : 0;
       });
       return row;
     });
@@ -294,7 +319,7 @@ const App: React.FC = () => {
                 <button onClick={() => setView('entry')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${view === 'entry' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Datos</button>
               </div>
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${isEditMode ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" className="w-6 bg-transparent text-center text-[9px] font-black outline-none text-current placeholder:text-slate-400" maxLength={3} />
+                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" className="w-8 bg-transparent text-center text-[10px] font-black outline-none text-white" maxLength={3} />
                 {isEditMode ? <Unlock size={12} /> : <Lock size={12} />}
               </div>
             </div>
@@ -378,11 +403,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="h-[350px] lg:h-[450px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartEvolutionData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                        <LineChart data={chartEvolutionData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} label={{ value: 'CONSECUCIÓN (%)', angle: -90, position: 'insideLeft', style: {fontWeight: 900, fontSize: 10, fill: '#6366f1'} }} />
-                            <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} />
+                            <YAxis domain={[0, 144]} tick={{fill: '#4f46e5', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} label={{ value: 'CONSECUCIÓN (%)', angle: -90, position: 'insideLeft', style: {fontWeight: 900, fontSize: 10, fill: '#6366f1'} }} />
+                            <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} itemStyle={{fontWeight: 900}} />
                             <Legend wrapperStyle={{paddingTop: '30px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase'}} iconType="circle" />
                             <ReferenceLine y={70} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META (70%)', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
                             {((CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c) || (c !== 'Instalaciones')).map((c: string, i: number) => (
