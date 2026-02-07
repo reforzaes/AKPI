@@ -37,7 +37,7 @@ function getCatIcon(c: string, size = 18) {
 }
 
 function getStatusInfo(pct: number) {
-  // Umbrales: <50 Rojo, 50-70 Amarillo, >70 Verde
+  // Umbrales solicitados: <50 Rojo, 50-70 Amarillo, >70 Verde
   if (pct >= 70) return { label: '¡MÁXIMO NIVEL!', color: 'text-emerald-600', dot: 'bg-emerald-500' };
   if (pct >= 50) return { label: 'IMPULSO GANADOR', color: 'text-amber-600', dot: 'bg-amber-500' };
   return { label: 'MODO GUERRERO', color: 'text-rose-600', dot: 'bg-rose-500' };
@@ -450,10 +450,11 @@ const App: React.FC = () => {
                         }
 
                         let color = 'bg-white';
+                        // El usuario pide explícitamente: Valor negativo = Rojo
                         if (val < 0) {
                           color = 'bg-rose-50 text-rose-600';
-                        } else if (val > 0 || achPct > 0) {
-                          // Umbrales solicitados: <50 Rojo, 50-70 Amarillo, >70 Verde
+                        } else if (val > 0) {
+                          // Umbrales actualizados: <50 Rojo, 50-70 Amarillo, >70 Verde
                           if (achPct >= 70) {
                             color = 'bg-emerald-50 text-emerald-700';
                           } else if (achPct >= 50) {
@@ -462,6 +463,7 @@ const App: React.FC = () => {
                             color = 'bg-rose-50 text-rose-600';
                           }
                         } else if (target > 0) {
+                          // Caso val == 0: Según imagen de referencia, gris neutro (no penalizar si no se ha empezado)
                           color = 'bg-slate-50/30 text-slate-400';
                         }
                         

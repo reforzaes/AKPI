@@ -117,7 +117,8 @@ export const getTarget = (cat: string, mIdx: number, section: Section, empId?: s
 export const calculateStrategicAchievement = (cat: string, value: number, monthsCount: number = 1, section: string = 'Sanitario'): number => {
   if (cat === 'Cifra de Venta (%Crec)') {
     const goal = section === 'Cocinas' ? 11.0 : 7.0;
-    // Permite negativos para crecimientos negativos
+    // Si el valor es negativo, devolvemos 0% de cumplimiento visual
+    if (value < 0) return 0;
     return Math.min(100, (value / goal) * 100);
   }
   if (cat === 'Formacion Horas') {
