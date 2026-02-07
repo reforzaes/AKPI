@@ -19,7 +19,7 @@ import {
 
 const SCRIPT_URL = 'api.php';
 
-// --- Funciones Auxiliares (Hoisted/Globales para evitar ReferenceError) ---
+// --- Funciones Auxiliares (Definidas arriba para evitar ReferenceError) ---
 
 function getCatIcon(c: string, size = 18) {
   const icons: any = { 
@@ -37,8 +37,9 @@ function getCatIcon(c: string, size = 18) {
 }
 
 function getStatusInfo(pct: number) {
-  if (pct >= 100) return { label: '¡MÁXIMO NIVEL!', color: 'text-emerald-600', dot: 'bg-emerald-500' };
-  if (pct >= 80) return { label: 'IMPULSO GANADOR', color: 'text-amber-600', dot: 'bg-amber-500' };
+  // Umbrales: <50 Rojo, 50-70 Amarillo, >70 Verde
+  if (pct >= 70) return { label: '¡MÁXIMO NIVEL!', color: 'text-emerald-600', dot: 'bg-emerald-500' };
+  if (pct >= 50) return { label: 'IMPULSO GANADOR', color: 'text-amber-600', dot: 'bg-amber-500' };
   return { label: 'MODO GUERRERO', color: 'text-rose-600', dot: 'bg-rose-500' };
 }
 
@@ -126,7 +127,7 @@ const App: React.FC = () => {
       }));
     } else if (action === 'saveStatus') {
       mappedPayload = payload.map((item: any) => ({
-        month_idx: item.month, section: item.section, is_filled: item.isFilled ? 1 : 0
+        month_idx: item.month, section: item.section, is_filled: item.is_filled ? 1 : 0
       }));
     }
 
@@ -175,7 +176,7 @@ const App: React.FC = () => {
     const active = [];
     for (let i = 0; i < 12; i++) {
       const hasData = emps.some((emp: any) => 
-        data.some(d => d.employeeId === emp.id && d.month === i && d.section === sec && d.actual > 0)
+        data.some(d => d.employeeId === emp.id && d.month === i && d.section === sec && d.actual !== 0)
       );
       if (hasData) active.push(i);
     }
@@ -246,7 +247,7 @@ const App: React.FC = () => {
               if (c !== 'Instalaciones') row[c] = calculateStrategicAchievement(c, val, 1, sec);
             } else {
               sumActual += val;
-              sumTarget += getTarget(c, mIdx, emp.id);
+              sumTarget += getTarget(c, mIdx, sec, emp.id);
             }
         });
         if (!STRATEGIC_BLOCKS.includes(c)) {
@@ -282,14 +283,14 @@ const App: React.FC = () => {
         let totalInstActual = 0, totalInstTarget = 0;
         subCats.forEach(sc => {
           totalInstActual += activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === sc && d.section === sec)?.actual || 0), 0);
-          totalInstTarget += activeMonthsWithData.reduce((acc, m) => acc + getTarget(sc, m, emp.id), 0);
+          totalInstTarget += activeMonthsWithData.reduce((acc, m) => acc + getTarget(sc, m, sec, emp.id), 0);
         });
         pillars.push({ name: 'Instalaciones', icon: <Hammer size={14}/>, pct: totalInstTarget > 0 ? (totalInstActual / totalInstTarget) * 100 : 0, raw: totalInstActual + ' ud' });
       } else {
         const empCats = ((CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c));
         pillars = empCats.map((c: string) => {
           const act = activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === c && d.section === sec)?.actual || 0), 0);
-          const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(c, m, emp.id), 0);
+          const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(c, m, sec, emp.id), 0);
           return { name: c, icon: getCatIcon(c, 14), pct: tar > 0 ? (act / tar) * 100 : 0, raw: act + ' ud' };
         });
       }
@@ -431,23 +432,36 @@ const App: React.FC = () => {
                         const activeCount = monthValues.filter(v => v !== 0).length || 1;
                         currentAch = calculateStrategicAchievement(cat, cat === 'Formacion Horas' ? totalVal : totalVal / activeCount, activeCount, sec);
                     } else {
-                        const totalTarget = MONTHS.reduce((acc, _, i) => acc + getTarget(cat, i, emp.id), 0);
+                        const totalTarget = MONTHS.reduce((acc, _, i) => acc + getTarget(cat, i, sec, emp.id), 0);
                         currentAch = totalTarget > 0 ? (totalVal / totalTarget) * 100 : 0;
                     }
                     return <tr key={emp.id} className="hover:bg-indigo-50/20 transition-colors">
                       <td className="p-6 font-bold text-slate-700 sticky left-0 bg-[#f8fafc] z-10 border-r text-xs">{emp.name}</td>
                       {MONTHS.map((_, i) => {
                         const val = monthValues[i];
-                        const target = getTarget(cat, i, emp.id);
-                        let color = 'bg-transparent';
+                        const target = getTarget(cat, i, sec, emp.id);
                         
-                        // Lógica de colores por cumplimiento
-                        const ach = STRATEGIC_BLOCKS.includes(cat) && cat !== 'Instalaciones' ? calculateStrategicAchievement(cat, val, 1, sec) : (target > 0 ? (val / target) * 100 : (val > 0 ? 100 : 0));
-                        
-                        if (val > 0) {
-                          color = ach >= 100 ? 'bg-emerald-50 text-emerald-700' : ach >= 80 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600';
+                        // Lógica de cumplimiento mensual para el color de la celda
+                        let achPct = 0;
+                        if (STRATEGIC_BLOCKS.includes(cat) && cat !== 'Instalaciones') {
+                          achPct = calculateStrategicAchievement(cat, val, 1, sec);
+                        } else {
+                          achPct = target > 0 ? (val / target) * 100 : (val !== 0 ? 100 : 0);
+                        }
+
+                        let color = 'bg-white';
+                        if (val < 0) {
+                          color = 'bg-rose-50 text-rose-600';
+                        } else if (val > 0 || achPct > 0) {
+                          // Umbrales solicitados: <50 Rojo, 50-70 Amarillo, >70 Verde
+                          if (achPct >= 70) {
+                            color = 'bg-emerald-50 text-emerald-700';
+                          } else if (achPct >= 50) {
+                            color = 'bg-amber-50 text-amber-600';
+                          } else {
+                            color = 'bg-rose-50 text-rose-600';
+                          }
                         } else if (target > 0) {
-                          // Si el valor es 0 pero hay objetivo, se marca en rojo suave indicando falta de progreso
                           color = 'bg-slate-50/30 text-slate-400';
                         }
                         
@@ -460,7 +474,7 @@ const App: React.FC = () => {
                               disabled={isLocked(i) || !isEditMode} 
                               placeholder="0" 
                               onChange={(e) => onUpdate(emp.id, i, parseFloat(e.target.value) || 0)} 
-                              className={`w-full max-w-[48px] h-8 text-center bg-transparent font-black outline-none text-base ${val > 0 ? (ach < 80 ? 'text-rose-600' : ach >= 100 ? 'text-emerald-600' : 'text-amber-600') : 'text-slate-400'}`} 
+                              className={`w-full max-w-[48px] h-8 text-center bg-transparent font-black outline-none text-base ${val < 0 ? 'text-rose-600' : (val > 0 ? (achPct < 50 ? 'text-rose-600' : achPct >= 70 ? 'text-emerald-600' : 'text-amber-600') : 'text-slate-400')}`} 
                             />
                             <div className="text-[8px] font-black text-slate-400/80 uppercase mt-1 whitespace-nowrap tracking-tighter">
                               OBJ: {target}
@@ -469,7 +483,7 @@ const App: React.FC = () => {
                         </td>
                       })}
                       <td className="p-4 text-center border-l border-slate-200 bg-white">
-                        <span className={`text-base font-black ${currentAch >= 100 ? 'text-emerald-600' : currentAch >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>{Math.round(currentAch)}%</span>
+                        <span className={`text-base font-black ${currentAch >= 70 ? 'text-emerald-600' : currentAch >= 50 ? 'text-amber-500' : 'text-rose-600'}`}>{Math.round(currentAch)}%</span>
                       </td>
                     </tr>
                   })}
@@ -492,7 +506,7 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className={`text-4xl lg:text-5xl font-black ${globalSectionPerformance >= 100 ? 'text-emerald-600' : globalSectionPerformance >= 80 ? 'text-amber-500' : 'text-rose-600'}`}>{globalSectionPerformance}%</span>
+                      <span className={`text-4xl lg:text-5xl font-black ${globalSectionPerformance >= 70 ? 'text-emerald-600' : globalSectionPerformance >= 50 ? 'text-amber-500' : 'text-rose-600'}`}>{globalSectionPerformance}%</span>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">GLOBAL SECCIÓN</span>
                     </div>
                 </div>
@@ -504,7 +518,7 @@ const App: React.FC = () => {
                             <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} itemStyle={{fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'}} labelStyle={{fontSize: '10px', fontWeight: 900, marginBottom: '6px', color: '#64748b'}} />
                             <Legend wrapperStyle={{paddingTop: '30px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'}} iconType="circle" iconSize={8} />
-                            <ReferenceLine y={100} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
+                            <ReferenceLine y={70} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META (70%)', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
                             {((CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c) || (c !== 'Instalaciones')).map((c: string, i: number) => (
                                 <Line key={c} type="monotone" dataKey={c} name={c} stroke={COLORS[i % COLORS.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} connectNulls={false} />
                             ))}
@@ -531,7 +545,7 @@ const App: React.FC = () => {
                                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{info.profileType}</p>
                                       </div>
                                     </div>
-                                    <div className={`px-4 py-2 rounded-xl text-center flex flex-col items-center ${info.percentage >= 80 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                    <div className={`px-4 py-2 rounded-xl text-center flex flex-col items-center ${info.percentage >= 70 ? 'bg-emerald-50 text-emerald-600' : info.percentage >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
                                         <span className="text-2xl font-black tracking-tighter">{info.percentage}%</span>
                                         <span className="text-[7px] font-black uppercase">Media</span>
                                     </div>
@@ -545,7 +559,7 @@ const App: React.FC = () => {
                                               <button key={pIdx} onClick={() => setInspectedPillar(isActiveDetail ? null : { empId: info.id, pillarName: pillar.name })} className={`p-3 rounded-2xl border transition-all text-left ${isActiveDetail ? 'bg-indigo-600 border-indigo-600 scale-105 shadow-md text-white' : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'}`}>
                                                   <div className="flex items-center gap-2 mb-1.5"><div className={isActiveDetail ? 'text-indigo-200' : 'text-slate-500'}>{pillar.icon}</div><span className={`text-[8px] font-black uppercase tracking-tight ${isActiveDetail ? 'text-indigo-100' : 'text-slate-600'}`}>{pillar.name}</span></div>
                                                   <div className="flex items-baseline justify-between"><span className={`text-lg font-black ${isActiveDetail ? 'text-white' : 'text-slate-800'}`}>{Math.round(pillar.pct)}%</span></div>
-                                                  <div className={`w-full h-1 rounded-full mt-2 overflow-hidden ${isActiveDetail ? 'bg-white/20' : 'bg-slate-200/50'}`}><div className={`h-full rounded-full ${isActiveDetail ? 'bg-white' : (pillar.pct >= 100 ? 'bg-emerald-500' : 'bg-rose-500')}`} style={{ width: `${Math.min(pillar.pct, 100)}%` }}></div></div>
+                                                  <div className={`w-full h-1 rounded-full mt-2 overflow-hidden ${isActiveDetail ? 'bg-white/20' : 'bg-slate-200/50'}`}><div className={`h-full rounded-full ${isActiveDetail ? 'bg-white' : (pillar.pct >= 70 ? 'bg-emerald-500' : pillar.pct >= 50 ? 'bg-amber-500' : 'bg-rose-500')}`} style={{ width: `${Math.min(pillar.pct, 100)}%` }}></div></div>
                                               </button>
                                             );
                                         })}
@@ -558,11 +572,11 @@ const App: React.FC = () => {
                                             {inspectedPillar.pillarName === 'Instalaciones' ? (
                                               INSTALLATION_SUB_CATEGORIES[sec]?.map((subCat: string) => {
                                                 const act = activeMonthsWithData.reduce((acc, m) => acc + (data.find(d => d.employeeId === info.id && d.month === m && d.category === subCat && d.section === sec)?.actual || 0), 0);
-                                                const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(subCat, m, info.id), 0);
+                                                const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(subCat, m, sec, info.id), 0);
                                                 const subPct = tar > 0 ? (act / tar) * 100 : 0;
                                                 return (
                                                   <div key={subCat} className="flex flex-col gap-1 border-b border-slate-800 pb-3 last:border-0">
-                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-slate-300 uppercase">{subCat}</span><span className={`text-[11px] font-black ${subPct >= 100 ? 'text-emerald-400' : 'text-rose-400'}`}>{Math.round(subPct)}%</span></div>
+                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-slate-300 uppercase">{subCat}</span><span className={`text-[11px] font-black ${subPct >= 70 ? 'text-emerald-400' : subPct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(subPct)}%</span></div>
                                                   </div>
                                                 );
                                               })
@@ -570,9 +584,9 @@ const App: React.FC = () => {
                                               activeMonthsWithData.map(m => {
                                                 const targetName = inspectedPillar.pillarName === 'Venta' ? 'Cifra de Venta (%Crec)' : inspectedPillar.pillarName === 'Formación' ? 'Formacion Horas' : inspectedPillar.pillarName === 'NPS' ? 'NPS' : inspectedPillar.pillarName;
                                                 const val = data.find(d => d.employeeId === info.id && d.month === m && d.category === targetName && d.section === sec)?.actual || 0;
-                                                const ach = STRATEGIC_BLOCKS.includes(targetName) ? calculateStrategicAchievement(targetName, val, 1, sec) : (val / getTarget(targetName, m, info.id)) * 100;
+                                                const ach = STRATEGIC_BLOCKS.includes(targetName) ? calculateStrategicAchievement(targetName, val, 1, sec) : (val / getTarget(targetName, m, sec, info.id)) * 100;
                                                 return (
-                                                  <div key={m} className="flex justify-between items-center border-b border-slate-800 pb-2 last:border-0"><span className="text-[9px] font-black text-slate-400 uppercase">{MONTHS[m]}</span><span className={`text-[10px] font-black ${ach >= 100 ? 'text-emerald-400' : 'text-rose-400'}`}>{Math.round(ach)}%</span></div>
+                                                  <div key={m} className="flex justify-between items-center border-b border-slate-800 pb-2 last:border-0"><span className="text-[9px] font-black text-slate-400 uppercase">{MONTHS[m]}</span><span className={`text-[10px] font-black ${ach >= 70 ? 'text-emerald-400' : ach >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(ach)}%</span></div>
                                                 );
                                               })
                                             )}
@@ -582,7 +596,7 @@ const App: React.FC = () => {
                                 </div>
                                 <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                     <div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></div><span className={`text-[9px] font-black uppercase tracking-[0.1em] ${status.color}`}>{status.label}</span></div>
-                                    {info.percentage >= 80 ? <TrendingUp size={16} className="text-emerald-500" /> : <TrendingDown size={16} className="text-rose-500" />}
+                                    {info.percentage >= 70 ? <TrendingUp size={16} className="text-emerald-500" /> : <TrendingDown size={16} className="text-rose-500" />}
                                 </div>
                             </div>
                         );

@@ -29,6 +29,7 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     const avg = filledMonths.length > 0 ? (sum / filledMonths.length) : 0;
     
     return {
+      id: emp.id,
       name: emp.name.split(' ')[0],
       fullName: emp.name,
       average: parseFloat(avg.toFixed(1)),
@@ -72,11 +73,11 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
       filledMonths.includes(d.month)
     );
     
-    // Fixed: Calculate goal using getTarget for each month and category
+    // Fixed: Calculate goal using getTarget with required arguments
     let totalGoal = 0;
     filledMonths.forEach(mIdx => {
       groupCategories.forEach(cat => {
-        totalGoal += getTarget(cat, mIdx);
+        totalGoal += getTarget(cat, mIdx, selectedSection, emp.id);
       });
     });
     
@@ -93,11 +94,11 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     };
   });
 
-  // Fixed: use average target for comparison since val is a per-month average
-  const getBarColor = (val: number) => {
+  // Fixed: use average target for comparison and provided required arguments
+  const getBarColor = (val: number, empId?: string) => {
     let totalTarget = 0;
     filledMonths.forEach(mIdx => {
-      totalTarget += getTarget(selectedCategory, mIdx);
+      totalTarget += getTarget(selectedCategory, mIdx, selectedSection, empId);
     });
     const avgTarget = filledMonths.length > 0 ? totalTarget / filledMonths.length : 0;
     
@@ -128,9 +129,9 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
     return acc;
   }, {} as Record<string, any[]>);
 
-  // Fixed: Average target for the chart reference line
+  // Fixed: Added selectedSection to getTarget call
   const averageTarget = filledMonths.length > 0 
-    ? filledMonths.reduce((acc, mIdx) => acc + getTarget(selectedCategory, mIdx), 0) / filledMonths.length 
+    ? filledMonths.reduce((acc, mIdx) => acc + getTarget(selectedCategory, mIdx, selectedSection), 0) / filledMonths.length 
     : 0;
 
   return (
@@ -198,7 +199,7 @@ const SummaryDashboard: React.FC<Props> = ({ selectedSection, selectedCategory, 
                 <ReferenceLine y={averageTarget} stroke="#cbd5e1" strokeDasharray="8 4" label={{ position: 'right', value: 'Obj', fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} />
                 <Bar dataKey="average" radius={[6, 6, 0, 0]} barSize={32}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getBarColor(entry.average)} />
+                    <Cell key={`cell-${index}`} fill={getBarColor(entry.average, entry.id)} />
                   ))}
                 </Bar>
               </BarChart>

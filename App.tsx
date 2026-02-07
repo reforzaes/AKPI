@@ -6,9 +6,9 @@ import {
   Database, RefreshCw, CheckCircle, Unlock, Lock, Target, ShowerHead, Bath, 
   TreeDeciduous, Utensils, UserCheck, UserPlus, TrendingUp, Award, Calendar, Archive, ArrowRightLeft, DoorClosed, LogIn, DoorOpen, Zap, Flower2, Sun, Wind, Battery, Sprout, Fence, Droplets, Hammer, Gem, Ruler, Users, Trophy
 } from 'lucide-react';
-// Fixed: Imported shared constants and getTarget from types.ts
+// Fixed: Imported Section to allow casting for getTarget calls
 import { 
-  MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG, getTarget
+  MONTHS, CATEGORY_TARGETS, CATEGORY_GROUPS, SECTION_CONFIG, getTarget, Section
 } from './types';
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJbIg0kW7jJKVK3X7mNwNdbDy2QQISNhR1bO5J8RLO1o_kERmoXuivIOLXtcFBC5nlNw/exec';
@@ -129,8 +129,8 @@ const App: React.FC = () => {
         let sumTarget = 0;
         responsibleIds.forEach(empId => {
           sumActual += data.find(d => d.employeeId === empId && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
-          // Fixed: use getTarget(c, mIdx) instead of static CATEGORY_TARGETS[c]
-          sumTarget += getTarget(c, mIdx);
+          // Fixed: Added sec and empId to getTarget call
+          sumTarget += getTarget(c, mIdx, sec as Section, empId);
         });
 
         const pct = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
@@ -163,8 +163,8 @@ const App: React.FC = () => {
         let totalTarget = 0;
         empCategories.forEach(c => {
             totalActual += closedMonths.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === c && d.section === sec)?.actual || 0), 0);
-            // Fixed: use getTarget(c, m) correctly within reduce
-            totalTarget += closedMonths.reduce((acc, m) => acc + getTarget(c, m), 0);
+            // Fixed: Added sec and emp.id to getTarget correctly within reduce
+            totalTarget += closedMonths.reduce((acc, m) => acc + getTarget(c, m, sec as Section, emp.id), 0);
         });
 
         const pct = totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
@@ -193,8 +193,8 @@ const App: React.FC = () => {
       responsibleIds.forEach(empId => {
         closedMonths.forEach(m => {
           totalActual += data.find(d => d.employeeId === empId && d.month === m && d.category === c && d.section === sec)?.actual || 0;
-          // Fixed: use getTarget(c, m) instead of CATEGORY_TARGETS[c]
-          totalTarget += getTarget(c, m);
+          // Fixed: Added sec and empId to getTarget call
+          totalTarget += getTarget(c, m, sec as Section, empId);
         });
       });
     });
@@ -300,7 +300,8 @@ const App: React.FC = () => {
                       <td className="p-6 font-bold text-slate-700 sticky left-0 bg-white z-10 border-r">{emp.name}</td>
                       {MONTHS.map((_, i) => {
                         const val = data.find(d => d.employeeId === emp.id && d.month === i && d.category === cat && d.section === sec)?.actual || 0;
-                        const target = getTarget(cat, i);
+                        // Fixed: Added sec as Section and emp.id to getTarget call
+                        const target = getTarget(cat, i, sec as Section, emp.id);
                         const color = val === 0 ? 'bg-white' : val >= target ? 'bg-green-50 text-green-700' : val >= target * 0.8 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600';
                         return <td key={i} className={`p-2 border-r text-center ${color} ${i === month ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
                           <input type="number" value={val || ''} disabled={isLocked(i) || !edit} placeholder="0" onChange={(e) => onUpdate(emp.id, i, parseInt(e.target.value) || 0)} className="w-12 h-10 text-center bg-transparent font-black outline-none text-lg" />
@@ -479,8 +480,8 @@ const App: React.FC = () => {
                                     <div className="p-8 space-y-8 flex-1">
                                         {empCategories.map(c => {
                                             const totalActual = closedMonths.reduce((acc, m) => acc + (data.find(d => d.employeeId === emp.id && d.month === m && d.category === c && d.section === sec)?.actual || 0), 0);
-                                            // Fixed: use getTarget(c, m) instead of CATEGORY_TARGETS[c]
-                                            const totalTarget = closedMonths.reduce((acc, m) => acc + getTarget(c, m), 0);
+                                            // Fixed: Added sec as Section and emp.id to getTarget correctly within reduce
+                                            const totalTarget = closedMonths.reduce((acc, m) => acc + getTarget(c, m, sec as Section, emp.id), 0);
                                             const pct = totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
                                             const colorClass = pct >= 100 ? 'bg-green-500' : pct >= 80 ? 'bg-amber-500' : 'bg-red-500';
                                             const textColor = pct >= 100 ? 'text-green-600' : pct >= 80 ? 'text-amber-600' : 'text-red-600';

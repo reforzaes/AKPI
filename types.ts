@@ -74,7 +74,7 @@ export const CATEGORY_TARGETS: Record<string, number | number[]> = {
   'CESPED': [2, 2, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4],
   'PERGOLAS': [2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
   'SUELO EXT': [1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-  // Estratégicos
+  // Estratégicos (Base)
   'Cifra de Venta (%Crec)': 7.0, 
   'Formacion Horas': 3.0, 
   'NPS': 70
@@ -100,10 +100,15 @@ export const EMPLOYEE_SPECIFIC_TARGETS: Record<string, Record<string, number[]>>
   }
 };
 
-export const getTarget = (cat: string, mIdx: number, empId?: string): number => {
+export const getTarget = (cat: string, mIdx: number, section: Section, empId?: string): number => {
   if (empId && EMPLOYEE_SPECIFIC_TARGETS[empId] && EMPLOYEE_SPECIFIC_TARGETS[empId][cat]) {
     return EMPLOYEE_SPECIFIC_TARGETS[empId][cat][mIdx] ?? 0;
   }
+  
+  if (cat === 'Cifra de Venta (%Crec)') {
+    return section === 'Cocinas' ? 11.0 : 7.0;
+  }
+  
   const target = CATEGORY_TARGETS[cat];
   if (Array.isArray(target)) return target[mIdx] ?? 0;
   return (target as number) ?? 0;
@@ -112,7 +117,8 @@ export const getTarget = (cat: string, mIdx: number, empId?: string): number => 
 export const calculateStrategicAchievement = (cat: string, value: number, monthsCount: number = 1, section: string = 'Sanitario'): number => {
   if (cat === 'Cifra de Venta (%Crec)') {
     const goal = section === 'Cocinas' ? 11.0 : 7.0;
-    return Math.min(100, Math.max(0, (value / goal) * 100));
+    // Permite negativos para crecimientos negativos
+    return Math.min(100, (value / goal) * 100);
   }
   if (cat === 'Formacion Horas') {
     const annualGoal = 3.0 * 12; 
