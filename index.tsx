@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -520,7 +521,7 @@ const App: React.FC = () => {
                             <YAxis domain={[0, 125]} tick={{fill: '#4f46e5', fontSize: 10, fontWeight: 900}} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px'}} itemStyle={{fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'}} labelStyle={{fontSize: '10px', fontWeight: 900, marginBottom: '6px', color: '#64748b'}} />
                             <Legend wrapperStyle={{paddingTop: '30px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'}} iconType="circle" iconSize={8} />
-                            <ReferenceLine y={70} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META (70%)', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
+                            <ReferenceLine y={100} stroke="#10b981" strokeDasharray="8 4" strokeWidth={2} label={{ position: 'right', value: 'META (100%)', fill: '#10b981', fontSize: 9, fontWeight: 900 }} />
                             {((CATEGORY_GROUPS as any)[grp]?.categories || []).filter((c: string) => !STRATEGIC_BLOCKS.includes(c) || (c !== 'Instalaciones')).map((c: string, i: number) => (
                                 <Line key={c} type="monotone" dataKey={c} name={c} stroke={COLORS[i % COLORS.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} connectNulls={false} />
                             ))}
@@ -577,8 +578,12 @@ const App: React.FC = () => {
                                                 const tar = activeMonthsWithData.reduce((acc, m) => acc + getTarget(subCat, m, sec, info.id), 0);
                                                 const subPct = tar > 0 ? (act / tar) * 100 : 0;
                                                 return (
-                                                  <div key={subCat} className="flex flex-col gap-1 border-b border-slate-800 pb-3 last:border-0">
-                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-slate-300 uppercase">{subCat}</span><span className={`text-[11px] font-black ${subPct >= 70 ? 'text-emerald-400' : subPct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(subPct)}%</span></div>
+                                                  <div key={subCat} className="flex justify-between items-center border-b border-slate-800 pb-3 last:border-0">
+                                                    <span className="text-[9px] font-black text-slate-300 uppercase">{subCat}</span>
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-[9px] font-bold text-slate-500">({act} ud)</span>
+                                                      <span className={`text-[11px] font-black ${subPct >= 70 ? 'text-emerald-400' : subPct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(subPct)}%</span>
+                                                    </div>
                                                   </div>
                                                 );
                                               })
@@ -587,8 +592,18 @@ const App: React.FC = () => {
                                                 const targetName = inspectedPillar.pillarName === 'Venta' ? 'Cifra de Venta (%Crec)' : inspectedPillar.pillarName === 'Formación' ? 'Formacion Horas' : inspectedPillar.pillarName === 'NPS' ? 'NPS' : inspectedPillar.pillarName;
                                                 const val = data.find(d => d.employeeId === info.id && d.month === m && d.category === targetName && d.section === sec)?.actual || 0;
                                                 const ach = STRATEGIC_BLOCKS.includes(targetName) ? calculateStrategicAchievement(targetName, val, 1, sec) : (val / getTarget(targetName, m, sec, info.id)) * 100;
+                                                
+                                                // Definición de sufijo según el tipo de métrica
+                                                const suffix = targetName.includes('%') ? '%' : targetName.includes('Horas') ? 'h' : ' ud';
+                                                
                                                 return (
-                                                  <div key={m} className="flex justify-between items-center border-b border-slate-800 pb-2 last:border-0"><span className="text-[9px] font-black text-slate-400 uppercase">{MONTHS[m]}</span><span className={`text-[10px] font-black ${ach >= 70 ? 'text-emerald-400' : ach >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(ach)}%</span></div>
+                                                  <div key={m} className="flex justify-between items-center border-b border-slate-800 pb-2 last:border-0">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase">{MONTHS[m]}</span>
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-[9px] font-bold text-slate-500">({val}{suffix})</span>
+                                                      <span className={`text-[10px] font-black ${ach >= 70 ? 'text-emerald-400' : ach >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{Math.round(ach)}%</span>
+                                                    </div>
+                                                  </div>
                                                 );
                                               })
                                             )}
