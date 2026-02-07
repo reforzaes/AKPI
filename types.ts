@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  ShowerHead, Utensils, TreeDeciduous, Zap, Flower2 
+  ShowerHead, Utensils, Ruler, Archive, ArrowRightLeft, Hammer, Gem, DoorClosed, ShoppingCart, BookOpen, SmilePlus, Target, TreeDeciduous, Zap, Flower2
 } from 'lucide-react';
 
 export type Section = 'Sanitario' | 'Cocinas' | 'Madera' | 'EERR' | 'Jardin';
@@ -35,53 +35,68 @@ export interface CategoryGroup {
 
 export const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Definición de bloques estratégicos principales para especialistas
-export const STRATEGIC_BLOCKS = ['Cifra de Venta (%)', 'Formación (h)', 'NPS (%)', 'Instalaciones'];
+// Definición de bloques estratégicos principales para perfiles especialistas
+export const STRATEGIC_BLOCKS = ['Cifra de Venta (%Crec)', 'Formacion Horas', 'NPS', 'Instalaciones'];
 
-// Sub-categorías que componen el bloque de Instalaciones por sección
+// Sub-categorías para el bloque de Instalaciones (Solo para Especialistas)
 export const INSTALLATION_SUB_CATEGORIES: Record<string, string[]> = {
-  'Sanitario': ['Mamparas', 'Muebles de Baño', 'Mediciones (Reform, CBxP y CPxP)'],
-  'Cocinas': ['Encimeras de piedra', 'Armarios', 'Mediciones'],
-  'EERR': ['Placas Solares', 'Aerotermia', 'Baterías'],
-  'Jardin': ['Césped Artificial', 'Cercados', 'Riego']
+  'Sanitario': ['MAMPARAS', 'MUEBLES', 'MEDICIONES'],
+  'Cocinas': ['Mediciones', 'Armarios'],
+  'EERR': ['SPLIT'],
+  'Madera': [],
+  'Jardin': []
 };
 
+// Objetivos generales (valor_max del CSV)
 export const CATEGORY_TARGETS: Record<string, number | number[]> = {
-  'Mamparas': [3, 3, 4, 4, 5, 5, 5, 6, 4, 6, 3, 4], 
-  'Mediciones (Reform, CBxP y CPxP)': 2, 
-  'Muebles de Baño': [4, 3, 4, 4, 4, 5, 5, 4, 4, 4, 4, 3],
-  'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6], 
-  'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4], 
-  'Encimeras de piedra': 2,
-  'Armarios': 4, 
-  'Mediciones': 10, 
-  'Reforma Cocinas': 9,
-  'Puertas de Entrada': 10, 
-  'Puertas de Paso': 10,
-  'Placas Solares': 5, 
-  'Aerotermia': 3, 
-  'Baterías': 2, 
-  'Instalación EERR': 4,
-  'Césped Artificial': 8, 
-  'Cercados': 6, 
-  'Riego': 10, 
-  'Reformas Jardín': 3,
-  'Cifra de Venta (%)': 10.6,
-  // 35 horas anuales segmentadas (aprox 3h/mes)
-  'Formación (h)': [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2], 
-  'NPS (%)': 70
+  // Sanitario
+  'MAMPARAS': [3, 3, 4, 4, 5, 5, 5, 6, 4, 6, 3, 4], 
+  'MUEBLES': [4, 3, 4, 4, 4, 5, 5, 4, 4, 4, 4, 3],
+  'MEDICIONES': [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+  'REFORMA': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
+  'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6],
+  // Cocinas
+  'Mediciones': 10,
+  'Armarios': 4,
+  'Muebles': [12, 12, 14, 13, 15, 10, 11, 5, 8, 6, 3, 3],
+  'Encimeras de Piedra': [9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9],
+  // Madera
+  'SUELO VINILICO': [4, 4, 3, 4, 4, 4, 5, 5, 5, 5, 5, 5],
+  'PUERTAS PASO': [16, 12, 16, 12, 17, 13, 28, 15, 8, 10, 10, 16],
+  'SUELO LAMINADO': [1, 1, 1, 1, 2, 2, 2, 3, 2, 2, 2, 2],
+  'VENTANAS': [8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9],
+  'TOLDOS': [0, 0, 0, 0, 0, 6, 7, 7, 3, 2, 2, 2],
+  // EERR
+  'CONDUCTOS': 3,
+  'ESTUFAS+INSERT': [2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
+  'SPLIT': [14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+  // Jardin
+  'CESPED': [2, 2, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4],
+  'PERGOLAS': [2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
+  'SUELO EXT': [1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  // Estratégicos
+  'Cifra de Venta (%Crec)': 7.0, 
+  'Formacion Horas': 3.0, 
+  'NPS': 70
 };
 
+// Objetivos específicos por empleado (Cargados desde CSV)
 export const EMPLOYEE_SPECIFIC_TARGETS: Record<string, Record<string, number[]>> = {
-  'p1': { 
-    'Mamparas': [10, 15, 14, 16, 15, 17, 20, 18, 16, 18, 9, 8],
-    'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
+  'p1': { // Miguel Herrera
+    'MAMPARAS': [10, 15, 14, 16, 15, 17, 20, 18, 16, 18, 9, 8],
+    'REFORMA': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
     'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6]
   },
-  'p2': { 
-    'Mamparas': [10, 10, 10, 11, 14, 15, 16, 12, 9, 8, 7, 6],
-    'Reformas': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
+  'p2': { // Cristina Moreno
+    'MAMPARAS': [10, 10, 10, 11, 14, 15, 16, 12, 9, 8, 7, 6],
+    'REFORMA': [4, 4, 5, 6, 6, 5, 5, 4, 6, 6, 5, 4],
     'CBxP + PxP': [8, 9, 9, 10, 10, 9, 9, 9, 9, 9, 8, 6]
+  },
+  'mp1': { // Jorge Fuster
+    'PUERTAS ENTRADA': [9, 9, 8, 8, 10, 11, 11, 11, 10, 8, 8, 8]
+  },
+  'mp2': { // Frank Femenía
+    'PUERTAS ENTRADA': [7, 7, 8, 8, 8, 9, 9, 9, 9, 7, 7, 7]
   }
 };
 
@@ -94,28 +109,23 @@ export const getTarget = (cat: string, mIdx: number, empId?: string): number => 
   return (target as number) ?? 0;
 };
 
-// Cálculo estratégico basado en reglas de negocio
-export const calculateStrategicAchievement = (cat: string, value: number, monthsCount: number = 1): number => {
-  if (cat === 'Cifra de Venta (%)') {
-    // 0% si crecimiento es 0, 100% si es 10.6
-    return Math.min(100, Math.max(0, (value / 10.6) * 100));
+export const calculateStrategicAchievement = (cat: string, value: number, monthsCount: number = 1, section: string = 'Sanitario'): number => {
+  if (cat === 'Cifra de Venta (%Crec)') {
+    const goal = section === 'Cocinas' ? 11.0 : 7.0;
+    return Math.min(100, Math.max(0, (value / goal) * 100));
   }
-  if (cat === 'Formación (h)') {
-    // 35h anuales. Umbral 0% si < 20h. 
-    // Ajustamos umbrales según los meses transcurridos para KPIs acumulados
-    const annualGoal = 35;
-    const annualThreshold = 20;
+  if (cat === 'Formacion Horas') {
+    const annualGoal = 3.0 * 12; 
+    const annualThreshold = 1.5 * 12; 
     const currentGoal = (annualGoal / 12) * monthsCount;
     const currentThreshold = (annualThreshold / 12) * monthsCount;
-    
     if (value < currentThreshold) return 0;
     if (value >= currentGoal) return 100;
     return Math.min(100, Math.max(0, ((value - currentThreshold) / (currentGoal - currentThreshold)) * 100));
   }
-  if (cat === 'NPS (%)') {
-    // 0% si < 60%, 100% si >= 70%
-    if (value < 60) return 0;
-    if (value >= 70) return 100;
+  if (cat === 'NPS') {
+    if (value < 60) return 0; 
+    if (value >= 70) return 100; 
     return Math.min(100, Math.max(0, ((value - 60) / (70 - 60)) * 100));
   }
   return 0;
@@ -125,54 +135,65 @@ export const CATEGORY_GROUPS: Record<string, CategoryGroup> = {
   SAN_VEND_ESP: {
     title: 'Vendedor Especialista',
     isSpecialist: true,
-    categories: [...STRATEGIC_BLOCKS, ...INSTALLATION_SUB_CATEGORIES['Sanitario']],
+    categories: [...STRATEGIC_BLOCKS, 'MAMPARAS', 'MUEBLES', 'MEDICIONES'],
     employees: [
-      { id: 's1', name: 'Pablo de Ramos' }, { id: 's2', name: 'Jose Navarro' },
-      { id: 's3', name: 'Alexandra Garcia' }, { id: 's4', name: 'Begoña Roig' },
-      { id: 's5', name: 'Blanca Malonda' }, { id: 's6', name: 'Andrea Grau' }
+      { id: 's1', name: 'Andrea Grau' }, { id: 's2', name: 'Pablo de Ramos' },
+      { id: 's3', name: 'Jose Navarro' }, { id: 's4', name: 'Alexandra Garcia' },
+      { id: 's5', name: 'Begoña Roig' }, { id: 's6', name: 'Blanca Malonda' }
     ]
   },
   SAN_VEND_PROJ: {
     title: 'Vendedor Proyecto',
-    categories: ['Mamparas', 'CBxP + PxP', 'Reformas'],
-    employees: [{ id: 'p1', name: 'Miguel Angel' }, { id: 'p2', name: 'Cristina Moreno' }]
+    categories: ['MAMPARAS', 'REFORMA', 'CBxP + PxP'],
+    employees: [
+      { id: 'p1', name: 'Miguel Herrera' }, { id: 'p2', name: 'Cristina Moreno' }
+    ]
   },
   COC_VEND_ESP: {
     title: 'Vendedor Especialista',
     isSpecialist: true,
-    categories: [...STRATEGIC_BLOCKS, ...INSTALLATION_SUB_CATEGORIES['Cocinas']],
+    categories: [...STRATEGIC_BLOCKS, 'Mediciones', 'Armarios'],
     employees: [
       { id: 'ce1', name: 'Laura Llopis' }, { id: 'ce2', name: 'Jorge Castella' },
-      { id: 'ce3', name: 'Analía Paredes' }, { id: 'ce4', name: 'Raquel Company' },
-      { id: 'ce5', name: 'May Cerezo' }, { id: 'ce6', name: 'Silvia Sanchez' }, { id: 'ce7', name: 'Daniel Villar' }
+      { id: 'ce3', name: 'Analía Paredes' }, { id: 'ce4', name: 'Silvia Sanchez' },
+      { id: 'ce5', name: 'Daniel Villar' }
     ]
   },
   COC_VEND_PROJ: {
     title: 'Vendedor Proyecto',
-    categories: ['Encimeras de piedra', 'Armarios', 'Mediciones', 'Reforma Cocinas'],
-    employees: [{ id: 'cp1', name: 'Raquel Company' }, { id: 'cp2', name: 'Lara Palmira' }, { id: 'cp3', name: 'May Cerezo' }]
+    categories: ['Muebles', 'Encimeras de Piedra', 'Armarios', 'Mediciones'],
+    employees: [
+      { id: 'cp1', name: 'Raquel Company' }, { id: 'cp2', name: 'May Cerezo' }, { id: 'cp3', name: 'Lara Palmira' }
+    ]
+  },
+  MAD_VEND_PROJ: {
+    title: 'Vendedor Proyecto',
+    categories: ['SUELO VINILICO', 'PUERTAS PASO', 'PUERTAS ENTRADA', 'SUELO LAMINADO', 'VENTANAS', 'TOLDOS'],
+    employees: [
+      { id: 'mp1', name: 'Jorge Fuster' }, { id: 'mp2', name: 'Frank Femenía' }
+    ]
   },
   EERR_VEND_ESP: {
     title: 'Vendedor Especialista',
     isSpecialist: true,
-    categories: [...STRATEGIC_BLOCKS, ...INSTALLATION_SUB_CATEGORIES['EERR']],
-    employees: [{ id: 'e1', name: 'Carlos Sol' }, { id: 'e2', name: 'Marta Viento' }]
+    categories: [...STRATEGIC_BLOCKS, 'SPLIT'],
+    employees: [
+      { id: 'ee1', name: 'Edgar Martinez' }, { id: 'ee2', name: 'Christian Perez' }
+    ]
   },
   EERR_VEND_PROJ: {
     title: 'Vendedor Proyecto',
-    categories: ['Instalación EERR'],
-    employees: [{ id: 'ep1', name: 'Roberto Voltio' }]
-  },
-  JARDIN_VEND_ESP: {
-    title: 'Vendedor Especialista',
-    isSpecialist: true,
-    categories: [...STRATEGIC_BLOCKS, ...INSTALLATION_SUB_CATEGORIES['Jardin']],
-    employees: [{ id: 'j1', name: 'Ana Pradera' }, { id: 'j2', name: 'Luis Riego' }]
+    categories: ['CONDUCTOS', 'ESTUFAS+INSERT', 'SPLIT'],
+    employees: [
+      { id: 'ep1', name: 'Raquel Hernandez' }, { id: 'ep2', name: 'Natasha' }
+    ]
   },
   JARDIN_VEND_PROJ: {
     title: 'Vendedor Proyecto',
-    categories: ['Reformas Jardín'],
-    employees: [{ id: 'jp1', name: 'Sofía Paisaje' }]
+    categories: ['CESPED', 'PERGOLAS', 'SUELO EXT'],
+    employees: [
+      { id: 'jp1', name: 'Alberto' }
+    ]
   }
 };
 
@@ -189,11 +210,8 @@ export const SECTION_CONFIG: any = {
   },
   Madera: {
     icon: React.createElement(TreeDeciduous, { size: 18 }),
-    categories: ['Puertas de Entrada', 'Puertas de Paso'],
-    employees: [
-      { id: 'm1', name: 'Colaborador 1' }, { id: 'm2', name: 'Colaborador 2' },
-      { id: 'm3', name: 'Colaborador 3' }, { id: 'm4', name: 'Colaborador 4' }
-    ]
+    categories: CATEGORY_GROUPS.MAD_VEND_PROJ.categories,
+    employees: CATEGORY_GROUPS.MAD_VEND_PROJ.employees
   },
   EERR: {
     icon: React.createElement(Zap, { size: 18 }),
@@ -202,7 +220,7 @@ export const SECTION_CONFIG: any = {
   },
   Jardin: {
     icon: React.createElement(Flower2, { size: 18 }),
-    categories: Array.from(new Set([...CATEGORY_GROUPS.JARDIN_VEND_ESP.categories, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories])),
-    employees: [...CATEGORY_GROUPS.JARDIN_VEND_ESP.employees, ...CATEGORY_GROUPS.JARDIN_VEND_PROJ.employees]
+    categories: CATEGORY_GROUPS.JARDIN_VEND_PROJ.categories,
+    employees: CATEGORY_GROUPS.JARDIN_VEND_PROJ.employees
   }
 };
