@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -235,25 +234,38 @@ const App: React.FC = () => {
     return MONTHS.map((mName, mIdx) => {
       const isMonthWithData = activeMonthsWithData.includes(mIdx);
       const row: any = { name: mName.substring(0, 3) };
+      
       groupCategories.forEach((c: string) => {
         if (!isMonthWithData) {
           row[c] = null;
           return;
         }
-        let sumActual = 0;
-        let sumTarget = 0;
+
+        let totalAchievementPct = 0;
         empsInGrp.forEach((emp: any) => {
             const val = data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === c && d.section === sec)?.actual || 0;
+            let currentEmpAch = 0;
+            
             if (STRATEGIC_BLOCKS.includes(c)) {
-              if (c !== 'Instalaciones') row[c] = calculateStrategicAchievement(c, val, 1, sec);
+              if (c !== 'Instalaciones') {
+                currentEmpAch = calculateStrategicAchievement(c, val, 1, sec);
+              } else {
+                const subCats = INSTALLATION_SUB_CATEGORIES[sec] || [];
+                let instActual = 0, instTarget = 0;
+                subCats.forEach(sc => {
+                  instActual += data.find(d => d.employeeId === emp.id && d.month === mIdx && d.category === sc && d.section === sec)?.actual || 0;
+                  instTarget += getTarget(sc, mIdx, sec, emp.id);
+                });
+                currentEmpAch = instTarget > 0 ? (instActual / instTarget) * 100 : (instActual > 0 ? 100 : 0);
+              }
             } else {
-              sumActual += val;
-              sumTarget += getTarget(c, mIdx, sec, emp.id);
+              const target = getTarget(c, mIdx, sec, emp.id);
+              currentEmpAch = target > 0 ? (val / target) * 100 : (val > 0 ? 100 : 0);
             }
+            totalAchievementPct += currentEmpAch;
         });
-        if (!STRATEGIC_BLOCKS.includes(c)) {
-          row[c] = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0;
-        }
+        
+        row[c] = empsInGrp.length > 0 ? Math.round(totalAchievementPct / empsInGrp.length) : 0;
       });
       return row;
     });
@@ -392,8 +404,8 @@ const App: React.FC = () => {
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide border-t border-slate-50 pt-4">
                   {((CATEGORY_GROUPS as any)[grp]?.categories || [])
                     .filter((c: string) => {
-                      const isEsp = grp.includes('_ESP');
-                      if (isEsp) return STRATEGIC_BLOCKS.includes(c) || (activeStrategicBlock === 'Instalaciones' && INSTALLATION_SUB_CATEGORIES[sec]?.includes(c));
+                      const iEsp = grp.includes('_ESP');
+                      if (iEsp) return STRATEGIC_BLOCKS.includes(c) || (activeStrategicBlock === 'Instalaciones' && INSTALLATION_SUB_CATEGORIES[sec]?.includes(c));
                       return true;
                     })
                     .map((c: any) => {
